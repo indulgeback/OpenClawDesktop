@@ -1,9 +1,9 @@
 
 <p align="center">
-  <img src="src/assets/logo.svg" width="128" height="128" alt="ClawX Logo" />
+  <img src="src/assets/logo.svg" width="128" height="128" alt="OpenClawPro Logo" />
 </p>
 
-<h1 align="center">ClawX</h1>
+<h1 align="center">OpenClawPro</h1>
 
 <p align="center">
   <strong>OpenClaw AIエージェントのためのデスクトップインターフェース</strong>
@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="#機能">機能</a> •
-  <a href="#なぜclawxなのか">なぜClawXなのか</a> •
+  <a href="#なぜopenclawproなのか">なぜOpenClawProなのか</a> •
   <a href="#はじめに">はじめに</a> •
   <a href="#アーキテクチャ">アーキテクチャ</a> •
   <a href="#開発">開発</a> •
@@ -25,7 +25,7 @@
   <a href="https://discord.com/invite/84Kex3GGAh" target="_blank">
   <img src="https://img.shields.io/discord/1399603591471435907?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb" alt="chat on Discord" />
   </a>
-  <img src="https://img.shields.io/github/downloads/ValueCell-ai/ClawX/total?color=%23027DEB" alt="Downloads" />
+  <img src="https://img.shields.io/github/downloads/ValueCell-ai/OpenClawPro/total?color=%23027DEB" alt="Downloads" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -37,11 +37,11 @@
 
 ## 概要
 
-**ClawX**は、強力なAIエージェントと日常のユーザーとの間のギャップを埋めます。[OpenClaw](https://github.com/OpenClaw)をベースに構築されており、コマンドラインによるAIオーケストレーションを、アクセスしやすく美しいデスクトップ体験に変換します。ターミナルは不要です。
+**OpenClawPro**は、強力なAIエージェントと日常のユーザーとの間のギャップを埋めます。[OpenClaw](https://github.com/OpenClaw)をベースに構築されており、コマンドラインによるAIオーケストレーションを、アクセスしやすく美しいデスクトップ体験に変換します。ターミナルは不要です。
 
-ワークフローの自動化、AI搭載チャネルの管理、インテリジェントなタスクのスケジューリングなど、ClawXはAIエージェントを効果的に活用するために必要なインターフェースを提供します。
+ワークフローの自動化、AI搭載チャネルの管理、インテリジェントなタスクのスケジューリングなど、OpenClawProはAIエージェントを効果的に活用するために必要なインターフェースを提供します。
 
-ClawXはベストプラクティスのモデルプロバイダーが事前設定されており、Windowsおよび多言語設定をネイティブにサポートしています。もちろん、**設定 → 詳細設定 → 開発者モード**から高度な設定を微調整することもできます。
+OpenClawProはベストプラクティスのモデルプロバイダーが事前設定されており、Windowsおよび多言語設定をネイティブにサポートしています。もちろん、**設定 → 詳細設定 → 開発者モード**から高度な設定を微調整することもできます。
 
 ---
 ## スクリーンショット
@@ -72,11 +72,11 @@ ClawXはベストプラクティスのモデルプロバイダーが事前設定
 
 ---
 
-## なぜClawXなのか
+## なぜOpenClawProなのか
 
-AIエージェントの構築にコマンドラインの習得は不要であるべきです。ClawXはシンプルな哲学のもとに設計されました：**強力な技術には、あなたの時間を尊重するインターフェースがふさわしい。**
+AIエージェントの構築にコマンドラインの習得は不要であるべきです。OpenClawProはシンプルな哲学のもとに設計されました：**強力な技術には、あなたの時間を尊重するインターフェースがふさわしい。**
 
-| 課題 | ClawXのソリューション |
+| 課題 | OpenClawProのソリューション |
 |------|----------------------|
 | 複雑なCLIセットアップ | ワンクリックインストールとガイド付きセットアップウィザード |
 | 設定ファイル | リアルタイムバリデーション付きのビジュアル設定 |
@@ -86,7 +86,7 @@ AIエージェントの構築にコマンドラインの習得は不要である
 
 ### OpenClaw内蔵
 
-ClawXは公式の**OpenClaw**コアを直接ベースに構築されています。別途インストールを必要とせず、アプリケーション内にランタイムを組み込むことで、シームレスな「バッテリー同梱」体験を提供します。
+OpenClawProは公式の**OpenClaw**コアを直接ベースに構築されています。別途インストールを必要とせず、アプリケーション内にランタイムを組み込むことで、シームレスな「バッテリー同梱」体験を提供します。
 
 私たちはアップストリームのOpenClawプロジェクトとの厳密な整合性を維持することにコミットしており、公式リリースが提供する最新の機能、安定性の改善、エコシステムの互換性に常にアクセスできることを保証します。
 
@@ -99,19 +99,19 @@ ClawXは公式の**OpenClaw**コアを直接ベースに構築されています
 
 ### 💬 インテリジェントチャットインターフェース
 モダンなチャット体験を通じてAIエージェントとコミュニケーションできます。複数の会話コンテキスト、メッセージ履歴、Markdownによるリッチコンテンツレンダリングに加え、マルチエージェント構成ではメイン入力欄の `@agent` から対象エージェントへ直接ルーティングできます。
-`@agent` で別のエージェントを選ぶと、ClawX はデフォルトエージェントを経由せず、そのエージェント自身の会話コンテキストへ直接切り替えます。各エージェントのワークスペースは既定で分離されていますが、より強い実行時分離は OpenClaw の sandbox 設定に依存します。
+`@agent` で別のエージェントを選ぶと、OpenClawPro はデフォルトエージェントを経由せず、そのエージェント自身の会話コンテキストへ直接切り替えます。各エージェントのワークスペースは既定で分離されていますが、より強い実行時分離は OpenClaw の sandbox 設定に依存します。
 
 ### 📡 マルチチャネル管理
 複数のAIチャネルを同時に設定・監視できます。各チャネルは独立して動作するため、異なるタスクに特化したエージェントを実行できます。
 現在は各チャンネルで複数アカウントを扱え、Channels ページでアカウントの Agent 紐付けやデフォルトアカウント切替を直接管理できます。
-ClawX には Tencent 公式の個人 WeChat チャンネルプラグインも同梱されており、Channels ページからアプリ内 QR フローで直接 WeChat を連携できます。
+OpenClawPro には Tencent 公式の個人 WeChat チャンネルプラグインも同梱されており、Channels ページからアプリ内 QR フローで直接 WeChat を連携できます。
 
 ### ⏰ Cronベースの自動化
 AIタスクを自動的に実行するようスケジュール設定できます。トリガーを定義し、間隔を設定することで、手動介入なしにAIエージェントを24時間稼働させることができます。
 
 ### 🧩 拡張可能なスキルシステム
 事前構築されたスキルでAIエージェントを拡張できます。統合スキルパネルからスキルの閲覧、インストール、管理が可能です。パッケージマネージャーは不要です。
-ClawX はドキュメント処理スキル（`pdf`、`xlsx`、`docx`、`pptx`）もフル内容で同梱し、起動時に管理スキルディレクトリ（既定 `~/.openclaw/skills`）へ自動配備し、初回インストール時に既定で有効化します。追加の同梱スキル（`find-skills`、`self-improving-agent`、`tavily-search`、`brave-web-search`）も既定で有効化されますが、必要な API キーが未設定の場合は OpenClaw が実行時に設定エラーを表示します。  
+OpenClawPro はドキュメント処理スキル（`pdf`、`xlsx`、`docx`、`pptx`）もフル内容で同梱し、起動時に管理スキルディレクトリ（既定 `~/.openclaw/skills`）へ自動配備し、初回インストール時に既定で有効化します。追加の同梱スキル（`find-skills`、`self-improving-agent`、`tavily-search`、`brave-web-search`）も既定で有効化されますが、必要な API キーが未設定の場合は OpenClaw が実行時に設定エラーを表示します。  
 Skills ページでは OpenClaw の複数ソース（管理ディレクトリ、workspace、追加スキルディレクトリ）から検出されたスキルを表示でき、各スキルの実際のパスを確認して実フォルダを直接開けます。
 
 主な検索スキルで必要な環境変数:
@@ -123,10 +123,10 @@ Skills ページでは OpenClaw の複数ソース（管理ディレクトリ、
 OpenAI-compatible ゲートウェイを **Custom プロバイダー** で使う場合、**設定 → AI Providers → Provider 編集** でカスタム `User-Agent` を設定でき、互換性が必要なエンドポイントで有効です。
 
 ### 🌙 アダプティブテーマ
-ライトモード、ダークモード、またはシステム同期テーマ。ClawXはあなたの好みに自動的に適応します。
+ライトモード、ダークモード、またはシステム同期テーマ。OpenClawProはあなたの好みに自動的に適応します。
 
 ### 🚀 自動起動設定
-**設定 → 通用** から **システム起動時に自動起動** を有効化すると、ログイン後に ClawX が自動的に起動します。
+**設定 → 通用** から **システム起動時に自動起動** を有効化すると、ログイン後に OpenClawPro が自動的に起動します。
 
 ---
 
@@ -142,14 +142,14 @@ OpenAI-compatible ゲートウェイを **Custom プロバイダー** で使う�
 
 #### ビルド済みリリース（推奨）
 
-[Releases](https://github.com/ValueCell-ai/ClawX/releases)ページから、お使いのプラットフォーム向けの最新リリースをダウンロードしてください。
+[Releases](https://github.com/ValueCell-ai/OpenClawPro/releases)ページから、お使いのプラットフォーム向けの最新リリースをダウンロードしてください。
 
 #### ソースからビルド
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/ValueCell-ai/ClawX.git
-cd ClawX
+git clone https://github.com/ValueCell-ai/OpenClawPro.git
+cd OpenClawPro
 
 # プロジェクトの初期化
 pnpm run init
@@ -159,7 +159,7 @@ pnpm dev
 ```
 ### 初回起動
 
-ClawXを初めて起動すると、**セットアップウィザード**が以下の手順をガイドします：
+OpenClawProを初めて起動すると、**セットアップウィザード**が以下の手順をガイドします：
 
 1. **言語と地域** – 使用する言語・地域の設定
 2. **AIプロバイダー** – APIキーまたは OAuth（ブラウザ/デバイスログイン対応プロバイダー）で追加
@@ -170,7 +170,7 @@ ClawXを初めて起動すると、**セットアップウィザード**が以�
 
 ### プロキシ設定
 
-ClawXには、Electron、OpenClaw Gateway、またはTelegramなどのチャネルがローカルプロキシクライアントを介してインターネットにアクセスする必要がある環境向けに、組み込みのプロキシ設定が含まれています。
+OpenClawProには、Electron、OpenClaw Gateway、またはTelegramなどのチャネルがローカルプロキシクライアントを介してインターネットにアクセスする必要がある環境向けに、組み込みのプロキシ設定が含まれています。
 
 **設定 → ゲートウェイ → プロキシ**を開いて以下を設定します：
 
@@ -189,10 +189,10 @@ ClawXには、Electron、OpenClaw Gateway、またはTelegramなどのチャネ�
 注意事項：
 
 - `host:port`のみの値はHTTPとして扱われます。
-- 高度なプロキシフィールドが空の場合、ClawXは`プロキシサーバー`にフォールバックします。
+- 高度なプロキシフィールドが空の場合、OpenClawProは`プロキシサーバー`にフォールバックします。
 - プロキシ設定を保存すると、Electronのネットワーク設定が即座に再適用され、ゲートウェイが自動的に再起動されます。
-- ClawXはTelegramが有効な場合、プロキシをOpenClawのTelegramチャネル設定にも同期します。
-- ClawXのプロキシが無効な状態では、Gatewayの通常再起動時に既存のTelegramチャネルプロキシ設定を保持します。
+- OpenClawProはTelegramが有効な場合、プロキシをOpenClawのTelegramチャネル設定にも同期します。
+- OpenClawProのプロキシが無効な状態では、Gatewayの通常再起動時に既存のTelegramチャネルプロキシ設定を保持します。
 - OpenClaw設定のTelegramプロキシを明示的に消したい場合は、プロキシ無効の状態で一度「保存」を実行してください。
 - **設定 → 詳細 → 開発者** では **OpenClaw Doctor** を実行でき、`openclaw doctor --json` の診断出力をアプリ内で確認できます。
 - Windows のパッケージ版では、同梱された `openclaw` CLI/TUI は端末入力を安定させるため、同梱の `node.exe` エントリーポイント経由で実行されます。
@@ -201,10 +201,10 @@ ClawXには、Electron、OpenClaw Gateway、またはTelegramなどのチャネ�
 
 ## アーキテクチャ
 
-ClawXは、**デュアルプロセス + Host API 統一アクセス**構成を採用しています。Renderer は単一クライアント抽象を呼び出し、プロトコル選択とライフサイクルは Main が管理します：
+OpenClawProは、**デュアルプロセス + Host API 統一アクセス**構成を採用しています。Renderer は単一クライアント抽象を呼び出し、プロトコル選択とライフサイクルは Main が管理します：
 
 ```┌─────────────────────────────────────────────────────────────────┐
-│                        ClawX デスクトップアプリ                    │
+│                        OpenClawPro デスクトップアプリ                    │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │              Electron メインプロセス                         │  │
@@ -258,14 +258,14 @@ ClawXは、**デュアルプロセス + Host API 統一アクセス**構成を�
 
 ### プロセスモデルと Gateway トラブルシューティング
 
-- ClawX は Electron アプリのため、**1つのアプリインスタンスでも複数プロセス（main/renderer/zygote/utility）が表示される**のが正常です。
+- OpenClawPro は Electron アプリのため、**1つのアプリインスタンスでも複数プロセス（main/renderer/zygote/utility）が表示される**のが正常です。
 - 単一起動保護は Electron のロックに加え、ローカルのプロセスロックファイルも併用し、デスクトップ IPC / セッションバスが不安定な環境でも重複起動を防ぎます。
 - ローリングアップグレード中に旧版/新版が混在すると、単一起動保護の挙動が非対称になる場合があります。安定運用のため、デスクトップクライアントは可能な限り同一バージョンへ揃えてください。
 - ただし OpenClaw Gateway の待受は常に**単一**であるべきです。`127.0.0.1:18789` を Listen しているプロセスは1つだけです。
 - Listen プロセスの確認例:
   - macOS/Linux: `lsof -nP -iTCP:18789 -sTCP:LISTEN`
   - Windows (PowerShell): `Get-NetTCPConnection -LocalPort 18789 -State Listen`
-- ウィンドウの閉じるボタン（`X`）は既定でトレイへ最小化する動作で、完全終了ではありません。完全終了する場合はトレイメニューの **Quit ClawX** を使用してください。
+- ウィンドウの閉じるボタン（`X`）は既定でトレイへ最小化する動作で、完全終了ではありません。完全終了する場合はトレイメニューの **Quit OpenClawPro** を使用してください。
 
 ---
 
@@ -294,7 +294,7 @@ AI を開発ワークフローに統合できます。エージェントを使�
 
 ### プロジェクト構成
 
-```ClawX/
+```OpenClawPro/
 ├── electron/                 # Electron メインプロセス
 │   ├── api/                 # メイン側 API ルーターとハンドラー
 │   │   └── routes/          # RPC/HTTP プロキシのルートモジュール
@@ -372,7 +372,7 @@ CI の `comms-regression` が必須シナリオと閾値を検証します。
 
 ## コントリビューション
 
-コミュニティからのコントリビューションを歓迎します！バグ修正、新機能、ドキュメントの改善、翻訳など、あらゆる貢献がClawXをより良くするのに役立ちます。
+コミュニティからのコントリビューションを歓迎します！バグ修正、新機能、ドキュメントの改善、翻訳など、あらゆる貢献がOpenClawProをより良くするのに役立ちます。
 
 ### コントリビューション方法
 
@@ -393,7 +393,7 @@ CI の `comms-regression` が必須シナリオと閾値を検証します。
 
 ## 謝辞
 
-ClawXは優れたオープンソースプロジェクトの上に構築されています：
+OpenClawProは優れたオープンソースプロジェクトの上に構築されています：
 
 - [OpenClaw](https://github.com/OpenClaw) – AIエージェントランタイム
 - [Electron](https://www.electronjs.org/) – クロスプラットフォームデスクトップフレームワーク
@@ -411,11 +411,11 @@ ClawXは優れたオープンソースプロジェクトの上に構築されて
 | :---: | :---: | :---: |
 | <img src="src/assets/community/wecom-qr.png" width="150" alt="WeChat QRコード" /> | <img src="src/assets/community/feishu-qr.png" width="150" alt="Feishu QRコード" /> | <img src="src/assets/community/20260212-185822.png" width="150" alt="Discord QRコード" /> |
 
-### ClawX パートナープログラム 🚀
+### OpenClawPro パートナープログラム 🚀
 
-ClawX パートナープログラムを開始します。特に、カスタム AI エージェントや自動化ニーズを持つより多くの顧客に ClawX を紹介してくださるパートナーを募集しています。
+OpenClawPro パートナープログラムを開始します。特に、カスタム AI エージェントや自動化ニーズを持つより多くの顧客に OpenClawPro を紹介してくださるパートナーを募集しています。
 
-パートナーの皆さまには、見込みユーザーや案件との接点づくりを担っていただき、ClawX チームは技術サポート、カスタマイズ、統合を全面的に提供します。
+パートナーの皆さまには、見込みユーザーや案件との接点づくりを担っていただき、OpenClawPro チームは技術サポート、カスタマイズ、統合を全面的に提供します。
 
 AI ツールや自動化に関心のある顧客とお仕事をされている方は、ぜひご一緒できればうれしいです。
 
@@ -426,14 +426,14 @@ AI ツールや自動化に関心のある顧客とお仕事をされている�
 ## スター履歴
 
 <p align="center">
-  <img src="https://api.star-history.com/svg?repos=ValueCell-ai/ClawX&type=Date" alt="スター履歴チャート" />
+  <img src="https://api.star-history.com/svg?repos=ValueCell-ai/OpenClawPro&type=Date" alt="スター履歴チャート" />
 </p>
 
 ---
 
 ## ライセンス
 
-ClawXは[MITライセンス](LICENSE)の下でリリースされています。本ソフトウェアの使用、変更、配布は自由に行えます。
+OpenClawProは[MITライセンス](LICENSE)の下でリリースされています。本ソフトウェアの使用、変更、配布は自由に行えます。
 
 ---
 

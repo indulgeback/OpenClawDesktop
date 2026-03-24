@@ -118,7 +118,7 @@ function isDuplicateChatEvent(eventState: string, event: Record<string, unknown>
 // [media attached: <path> ...] reference in the Gateway's user message text).
 // Keying by path avoids the race condition of keying by runId (which is only
 // available after the RPC returns, but history may load before that).
-const IMAGE_CACHE_KEY = 'clawx:image-cache';
+const IMAGE_CACHE_KEY = 'openclawpro:image-cache';
 const IMAGE_CACHE_MAX = 100; // max entries to prevent unbounded growth
 
 function loadImageCache(): Map<string, AttachedFileMeta> {
@@ -1334,7 +1334,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Extract first user message text as a session label for display in the toolbar.
       // Skip main sessions (key ends with ":main") — they rely on the Gateway-provided
-      // displayName (e.g. the configured agent name "ClawX") instead.
+      // displayName (e.g. the configured agent name "OpenClawPro") instead.
       const isMainSession = currentSessionKey.endsWith(':main');
       if (!isMainSession) {
         const firstUserMsg = finalMessages.find((m) => m.role === 'user');

@@ -13,12 +13,12 @@ const {
   const setLoginItemSettingsMock = vi.fn();
   const electronAppMock = {
     isPackaged: true,
-    getPath: (name: string) => (name === 'home' ? `/tmp/clawx-launch-startup-${suffix}` : '/tmp'),
+    getPath: (name: string) => (name === 'home' ? `/tmp/openclawpro-launch-startup-${suffix}` : '/tmp'),
     setLoginItemSettings: setLoginItemSettingsMock,
   };
 
   return {
-    testHome: `/tmp/clawx-launch-startup-${suffix}`,
+    testHome: `/tmp/openclawpro-launch-startup-${suffix}`,
     electronAppMock,
     setLoginItemSettingsMock,
   };
@@ -70,12 +70,12 @@ describe('launch-at-startup integration', () => {
     setPlatform('linux');
     const { applyLaunchAtStartupSetting } = await import('@electron/main/launch-at-startup');
 
-    const autostartPath = join(testHome, '.config', 'autostart', 'clawx.desktop');
+    const autostartPath = join(testHome, '.config', 'autostart', 'openclawpro.desktop');
     await applyLaunchAtStartupSetting(true);
 
     const content = await readFile(autostartPath, 'utf8');
     expect(content).toContain('[Desktop Entry]');
-    expect(content).toContain('Name=ClawX');
+    expect(content).toContain('Name=OpenClawPro');
     expect(content).toContain('Exec=');
 
     await applyLaunchAtStartupSetting(false);

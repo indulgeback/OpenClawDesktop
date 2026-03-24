@@ -17,7 +17,7 @@ import {
   setDefaultProviderAccount,
 } from '../services/providers/provider-store';
 import { ensureProviderStoreMigrated } from '../services/providers/provider-migration';
-import { getClawXProviderStore } from '../services/providers/store-instance';
+import { getOpenClawProProviderStore } from '../services/providers/store-instance';
 import {
   deleteProviderSecret,
   getProviderSecret,
@@ -51,7 +51,7 @@ export interface ProviderConfig {
 export async function storeApiKey(providerId: string, apiKey: string): Promise<boolean> {
   try {
     await ensureProviderStoreMigrated();
-    const s = await getClawXProviderStore();
+    const s = await getOpenClawProProviderStore();
     const keys = (s.get('apiKeys') || {}) as Record<string, string>;
     keys[providerId] = apiKey;
     s.set('apiKeys', keys);
@@ -81,7 +81,7 @@ export async function getApiKey(providerId: string): Promise<string | null> {
       return secret.apiKey ?? null;
     }
 
-    const s = await getClawXProviderStore();
+    const s = await getOpenClawProProviderStore();
     const keys = (s.get('apiKeys') || {}) as Record<string, string>;
     return keys[providerId] || null;
   } catch (error) {
@@ -96,7 +96,7 @@ export async function getApiKey(providerId: string): Promise<string | null> {
 export async function deleteApiKey(providerId: string): Promise<boolean> {
   try {
     await ensureProviderStoreMigrated();
-    const s = await getClawXProviderStore();
+    const s = await getOpenClawProProviderStore();
     const keys = (s.get('apiKeys') || {}) as Record<string, string>;
     delete keys[providerId];
     s.set('apiKeys', keys);
@@ -118,7 +118,7 @@ export async function hasApiKey(providerId: string): Promise<boolean> {
     return true;
   }
 
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   const keys = (s.get('apiKeys') || {}) as Record<string, string>;
   return providerId in keys;
 }
@@ -128,7 +128,7 @@ export async function hasApiKey(providerId: string): Promise<boolean> {
  */
 export async function listStoredKeyIds(): Promise<string[]> {
   await ensureProviderStoreMigrated();
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   const keys = (s.get('apiKeys') || {}) as Record<string, string>;
   return Object.keys(keys);
 }
@@ -140,7 +140,7 @@ export async function listStoredKeyIds(): Promise<string[]> {
  */
 export async function saveProvider(config: ProviderConfig): Promise<void> {
   await ensureProviderStoreMigrated();
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   const providers = s.get('providers') as Record<string, ProviderConfig>;
   providers[config.id] = config;
   s.set('providers', providers);
@@ -156,7 +156,7 @@ export async function saveProvider(config: ProviderConfig): Promise<void> {
  */
 export async function getProvider(providerId: string): Promise<ProviderConfig | null> {
   await ensureProviderStoreMigrated();
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   const providers = s.get('providers') as Record<string, ProviderConfig>;
   if (providers[providerId]) {
     return providers[providerId];
@@ -171,7 +171,7 @@ export async function getProvider(providerId: string): Promise<ProviderConfig | 
  */
 export async function getAllProviders(): Promise<ProviderConfig[]> {
   await ensureProviderStoreMigrated();
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   const providers = s.get('providers') as Record<string, ProviderConfig>;
   const legacyProviders = Object.values(providers);
   if (legacyProviders.length > 0) {
@@ -192,7 +192,7 @@ export async function deleteProvider(providerId: string): Promise<boolean> {
     await deleteApiKey(providerId);
 
     // Delete the provider config
-    const s = await getClawXProviderStore();
+    const s = await getOpenClawProProviderStore();
     const providers = s.get('providers') as Record<string, ProviderConfig>;
     delete providers[providerId];
     s.set('providers', providers);
@@ -216,7 +216,7 @@ export async function deleteProvider(providerId: string): Promise<boolean> {
  */
 export async function setDefaultProvider(providerId: string): Promise<void> {
   await ensureProviderStoreMigrated();
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   s.set('defaultProvider', providerId);
   await setDefaultProviderAccount(providerId);
 }
@@ -226,7 +226,7 @@ export async function setDefaultProvider(providerId: string): Promise<void> {
  */
 export async function getDefaultProvider(): Promise<string | undefined> {
   await ensureProviderStoreMigrated();
-  const s = await getClawXProviderStore();
+  const s = await getOpenClawProProviderStore();
   return (s.get('defaultProvider') as string | undefined)
     ?? (s.get('defaultProviderAccountId') as string | undefined);
 }
@@ -260,7 +260,7 @@ export async function getProviderWithKeyInfo(
 
 /**
  * Get all providers with key info (for UI display)
- * Also synchronizes ClawX local provider list with OpenClaw's actual config.
+ * Also synchronizes OpenClawPro local provider list with OpenClaw's actual config.
  */
 export async function getAllProvidersWithKeyInfo(): Promise<
   Array<ProviderConfig & { hasKey: boolean; keyMasked: string | null }>
@@ -275,7 +275,7 @@ export async function getAllProvidersWithKeyInfo(): Promise<
   for (const provider of providers) {
     // Sync check: If it's a custom/OAuth provider and it no longer exists in OpenClaw config
     // (e.g. wiped by Gateway due to missing plugin, or manually deleted by user)
-    // we should remove it from ClawX UI to stay consistent.
+    // we should remove it from OpenClawPro UI to stay consistent.
     const isBuiltin = (BUILTIN_PROVIDER_TYPES as readonly string[]).includes(provider.type);
     // For custom/ollama providers, the OpenClaw config key is derived as
     // "<type>-<suffix>" where suffix = first 8 chars of providerId with hyphens stripped.

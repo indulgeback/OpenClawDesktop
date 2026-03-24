@@ -165,7 +165,7 @@ describe('ProviderService.listAccounts stale-account cleanup', () => {
     expect(result).toEqual(accounts);
   });
 
-  it('imports new providers from OpenClaw config not yet in ClawX store', async () => {
+  it('imports new providers from OpenClaw config not yet in OpenClawPro store', async () => {
     const accounts = [
       makeAccount({ id: 'moonshot', vendorId: 'moonshot' as ProviderAccount['vendorId'] }),
     ];
@@ -190,7 +190,7 @@ describe('ProviderService.listAccounts stale-account cleanup', () => {
     expect(result.map((a: ProviderAccount) => a.id)).toContain('siliconflow');
   });
 
-  it('does not import providers already in ClawX store', async () => {
+  it('does not import providers already in OpenClawPro store', async () => {
     const accounts = [
       makeAccount({ id: 'moonshot', vendorId: 'moonshot' as ProviderAccount['vendorId'] }),
     ];

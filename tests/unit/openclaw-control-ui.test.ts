@@ -4,8 +4,8 @@ import { buildOpenClawControlUiUrl } from '@electron/utils/openclaw-control-ui';
 
 describe('buildOpenClawControlUiUrl', () => {
   it('uses the URL fragment for one-time token bootstrap', () => {
-    expect(buildOpenClawControlUiUrl(18789, 'clawx-test-token')).toBe(
-      'http://127.0.0.1:18789/#token=clawx-test-token',
+    expect(buildOpenClawControlUiUrl(18789, 'openclawpro-test-token')).toBe(
+      'http://127.0.0.1:18789/#token=openclawpro-test-token',
     );
   });
 

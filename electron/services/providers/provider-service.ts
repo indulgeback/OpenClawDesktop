@@ -62,7 +62,7 @@ export class ProviderService {
     await ensureProviderStoreMigrated();
     let accounts = await listProviderAccounts();
 
-    // Seed: when ClawX store is empty but OpenClaw config has providers,
+    // Seed: when OpenClawPro store is empty but OpenClaw config has providers,
     // create ProviderAccount entries so the settings panel isn't blank.
     // This covers users who configured providers via CLI or openclaw.json directly.
     if (accounts.length === 0) {
@@ -80,7 +80,7 @@ export class ProviderService {
     {
       const activeProviders = await getActiveOpenClawProviders();
       // When OpenClaw config has no providers (e.g. user deleted the file),
-      // treat ALL accounts as stale so ClawX stays in sync.
+      // treat ALL accounts as stale so OpenClawPro stays in sync.
       const configEmpty = activeProviders.size === 0;
 
       if (configEmpty) {
@@ -102,7 +102,7 @@ export class ProviderService {
       });
     }
 
-    // Import: detect providers in OpenClaw config not yet in the ClawX store.
+    // Import: detect providers in OpenClaw config not yet in the OpenClawPro store.
     {
       const { providers: openClawProviders, defaultModel } = await getOpenClawProvidersConfig();
       const existingIds = new Set(accounts.map((a) => a.id));
@@ -125,7 +125,7 @@ export class ProviderService {
   }
 
   /**
-   * Seed the ClawX provider store from openclaw.json when the store is empty.
+   * Seed the OpenClawPro provider store from openclaw.json when the store is empty.
    * This is a one-time operation for users who configured providers externally.
    */
   private async seedAccountsFromOpenClawConfig(): Promise<ProviderAccount[]> {

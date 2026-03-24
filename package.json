@@ -1,6 +1,6 @@
 {
-    "name": "clawx",
-    "version": "0.3.0-alpha.0",
+    "name": "openclawpro",
+    "version": "0.2.0",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@discordjs/opus",
@@ -26,9 +26,9 @@
             ]
         }
     },
-    "description": "ClawX - Graphical AI Assistant based on OpenClaw",
+    "description": "OpenClawPro - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
-    "author": "ClawX Team",
+    "author": "OpenClawPro Team",
     "license": "MIT",
     "private": true,
     "scripts": {
