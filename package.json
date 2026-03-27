@@ -1,6 +1,6 @@
 {
     "name": "openclawpro",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "pnpm": {
         "onlyBuiltDependencies": [
             "@discordjs/opus",

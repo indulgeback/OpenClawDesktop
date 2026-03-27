@@ -16,7 +16,14 @@ import { setQuitting } from './app-state';
 const OSS_BASE_URL = 'https://oss.intelli-spectrum.com';
 
 export interface UpdateStatus {
-  status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
+  status:
+    | 'idle'
+    | 'checking'
+    | 'available'
+    | 'not-available'
+    | 'downloading'
+    | 'downloaded'
+    | 'error';
   info?: UpdateInfo;
   progress?: ProgressInfo;
   error?: string;
@@ -29,7 +36,7 @@ export interface UpdaterEvents {
   'update-not-available': (info: UpdateInfo) => void;
   'download-progress': (progress: ProgressInfo) => void;
   'update-downloaded': (event: UpdateDownloadedEvent) => void;
-  'error': (error: Error) => void;
+  error: (error: Error) => void;
 }
 
 /**
@@ -58,15 +65,31 @@ export class AppUpdater extends EventEmitter {
     this.on('error', (error: Error) => {
       logger.error('[Updater] AppUpdater emitted error:', error);
     });
-    
+
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
-    
+
     autoUpdater.logger = {
-      info: (msg: string) => logger.info('[Updater]', msg),
-      warn: (msg: string) => logger.warn('[Updater]', msg),
-      error: (msg: string) => logger.error('[Updater]', msg),
-      debug: (msg: string) => logger.debug('[Updater]', msg),
+      info: (msg: string) => {
+        if (!msg.toLowerCase().includes('clawx')) {
+          logger.info('[Updater]', msg);
+        }
+      },
+      warn: (msg: string) => {
+        if (!msg.toLowerCase().includes('clawx')) {
+          logger.warn('[Updater]', msg);
+        }
+      },
+      error: (msg: string) => {
+        if (!msg.toLowerCase().includes('clawx')) {
+          logger.error('[Updater]', msg);
+        }
+      },
+      debug: (msg: string) => {
+        if (!msg.toLowerCase().includes('clawx')) {
+          logger.debug('[Updater]', msg);
+        }
+      },
     };
 
     // Override feed URL for prerelease channels so that
@@ -287,10 +310,7 @@ export class AppUpdater extends EventEmitter {
 /**
  * Register IPC handlers for update operations
  */
-export function registerUpdateHandlers(
-  updater: AppUpdater,
-  mainWindow: BrowserWindow
-): void {
+export function registerUpdateHandlers(updater: AppUpdater, mainWindow: BrowserWindow): void {
   updater.setMainWindow(mainWindow);
 
   // Get current update status
@@ -347,7 +367,6 @@ export function registerUpdateHandlers(
     updater.cancelAutoInstall();
     return { success: true };
   });
-
 }
 
 // Export singleton instance
