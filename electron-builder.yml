@@ -1,4 +1,4 @@
-appId: app.openclawpro.desktop
+appId: app.openclaw.desktop
 productName: OpenClaw
 copyright: Copyright © 2026 OpenClaw
 compression: maximum
@@ -165,7 +165,7 @@ linux:
       Comment: AI Assistant powered by OpenClaw
       Categories: Utility;Network;
       Keywords: ai;assistant;automation;chat;
-      StartupWMClass: openclawpro
+      StartupWMClass: openclaw
 
 appImage:
   license: LICENSE
