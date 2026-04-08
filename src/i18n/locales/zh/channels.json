@@ -362,7 +362,11 @@
           "placeholder": "您的机器人访问令牌"
         }
       },
-      "instructions": ["前往 Mattermost 集成", "创建一个新的 Bot 账户", "复制访问令牌"]
+      "instructions": [
+        "前往 Mattermost 集成",
+        "创建一个新的 Bot 账户",
+        "复制访问令牌"
+      ]
     },
     "qqbot": {
       "description": "通过 @sliverp/qqbot 插件连接 QQ 机器人",

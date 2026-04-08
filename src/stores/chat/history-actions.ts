@@ -6,6 +6,7 @@ import {
   enrichWithToolResultFiles,
   getMessageText,
   hasNonToolAssistantContent,
+  isInternalMessage,
   isToolResultRole,
   loadMissingPreviews,
   toMs,
@@ -18,7 +19,7 @@ async function loadCronFallbackMessages(sessionKey: string, limit = 200): Promis
   if (!isCronSessionKey(sessionKey)) return [];
   try {
     const response = await hostApiFetch<{ messages?: RawMessage[] }>(
-      buildCronSessionHistoryPath(sessionKey, limit)
+      buildCronSessionHistoryPath(sessionKey, limit),
     );
     return Array.isArray(response.messages) ? response.messages : [];
   } catch (error) {
@@ -29,19 +30,55 @@ async function loadCronFallbackMessages(sessionKey: string, limit = 200): Promis
 
 export function createHistoryActions(
   set: ChatSet,
-  get: ChatGet
+  get: ChatGet,
 ): Pick<SessionHistoryActions, 'loadHistory'> {
   return {
     loadHistory: async (quiet = false) => {
       const { currentSessionKey } = get();
       if (!quiet) set({ loading: true, error: null });
 
+      const isCurrentSession = () => get().currentSessionKey === currentSessionKey;
+      const getPreviewMergeKey = (message: RawMessage): string => (
+        `${message.id ?? ''}|${message.role}|${message.timestamp ?? ''}|${getMessageText(message.content)}`
+      );
+      const mergeHydratedMessages = (
+        currentMessages: RawMessage[],
+        hydratedMessages: RawMessage[],
+      ): RawMessage[] => {
+        const hydratedFilesByKey = new Map(
+          hydratedMessages
+            .filter((message) => message._attachedFiles?.length)
+            .map((message) => [
+              getPreviewMergeKey(message),
+              message._attachedFiles!.map((file) => ({ ...file })),
+            ]),
+        );
+
+        return currentMessages.map((message) => {
+          const attachedFiles = hydratedFilesByKey.get(getPreviewMergeKey(message));
+          return attachedFiles
+            ? { ...message, _attachedFiles: attachedFiles }
+            : message;
+        });
+      };
+
+      const applyLoadFailure = (errorMessage: string | null) => {
+        if (!isCurrentSession()) return;
+        set((state) => {
+          const hasMessages = state.messages.length > 0;
+          return {
+            loading: false,
+            error: !quiet && errorMessage ? errorMessage : state.error,
+            ...(hasMessages ? {} : { messages: [] as RawMessage[] }),
+          };
+        });
+      };
+
       const applyLoadedMessages = (rawMessages: RawMessage[], thinkingLevel: string | null) => {
+        if (!isCurrentSession()) return;
         // Before filtering: attach images/files from tool_result messages to the next assistant message
         const messagesWithToolImages = enrichWithToolResultFiles(rawMessages);
-        const filteredMessages = messagesWithToolImages.filter(
-          (msg) => !isToolResultRole(msg.role)
-        );
+        const filteredMessages = messagesWithToolImages.filter((msg) => !isToolResultRole(msg.role) && !isInternalMessage(msg));
         // Restore file attachments for user/assistant messages (from cache + text patterns)
         const enrichedMessages = enrichWithCachedImages(filteredMessages);
 
@@ -53,16 +90,13 @@ export function createHistoryActions(
         if (get().sending && userMsgAt) {
           const userMsMs = toMs(userMsgAt);
           const hasRecentUser = enrichedMessages.some(
-            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
+            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
           );
           if (!hasRecentUser) {
             const currentMsgs = get().messages;
-            const optimistic = [...currentMsgs]
-              .reverse()
-              .find(
-                (m) =>
-                  m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000
-              );
+            const optimistic = [...currentMsgs].reverse().find(
+              (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
+            );
             if (optimistic) {
               finalMessages = [...enrichedMessages, optimistic];
             }
@@ -73,7 +107,7 @@ export function createHistoryActions(
 
         // Extract first user message text as a session label for display in the toolbar.
         // Skip main sessions (key ends with ":main") — they rely on the Gateway-provided
-        // displayName (e.g. the configured agent name "OpenClaw") instead.
+        // displayName (e.g. the configured agent name "ClawX") instead.
         const isMainSession = currentSessionKey.endsWith(':main');
         if (!isMainSession) {
           const firstUserMsg = finalMessages.find((m) => m.role === 'user');
@@ -99,17 +133,11 @@ export function createHistoryActions(
 
         // Async: load missing image previews from disk (updates in background)
         loadMissingPreviews(finalMessages).then((updated) => {
+          if (!isCurrentSession()) return;
           if (updated) {
-            // Create new object references so React.memo detects changes.
-            // loadMissingPreviews mutates AttachedFileMeta in place, so we
-            // must produce fresh message + file references for each affected msg.
-            set({
-              messages: finalMessages.map((msg) =>
-                msg._attachedFiles
-                  ? { ...msg, _attachedFiles: msg._attachedFiles.map((f) => ({ ...f })) }
-                  : msg
-              ),
-            });
+            set((state) => ({
+              messages: mergeHydratedMessages(state.messages, finalMessages),
+            }));
           }
         });
         const { pendingFinal, lastUserMessageAt, sending: isSendingNow } = get();
@@ -148,14 +176,15 @@ export function createHistoryActions(
       };
 
       try {
-        const result = (await invokeIpc('gateway:rpc', 'chat.history', {
-          sessionKey: currentSessionKey,
-          limit: 200,
-        })) as { success: boolean; result?: Record<string, unknown>; error?: string };
+        const result = await invokeIpc(
+          'gateway:rpc',
+          'chat.history',
+          { sessionKey: currentSessionKey, limit: 200 }
+        ) as { success: boolean; result?: Record<string, unknown>; error?: string };
 
         if (result.success && result.result) {
           const data = result.result;
-          let rawMessages = Array.isArray(data.messages) ? (data.messages as RawMessage[]) : [];
+          let rawMessages = Array.isArray(data.messages) ? data.messages as RawMessage[] : [];
           const thinkingLevel = data.thinkingLevel ? String(data.thinkingLevel) : null;
           if (rawMessages.length === 0 && isCronSessionKey(currentSessionKey)) {
             rawMessages = await loadCronFallbackMessages(currentSessionKey, 200);
@@ -166,7 +195,7 @@ export function createHistoryActions(
           if (fallbackMessages.length > 0) {
             applyLoadedMessages(fallbackMessages, null);
           } else {
-            set({ messages: [], loading: false });
+            applyLoadFailure(result.error || 'Failed to load chat history');
           }
         }
       } catch (err) {
@@ -175,7 +204,7 @@ export function createHistoryActions(
         if (fallbackMessages.length > 0) {
           applyLoadedMessages(fallbackMessages, null);
         } else {
-          set({ messages: [], loading: false });
+          applyLoadFailure(String(err));
         }
       }
     },

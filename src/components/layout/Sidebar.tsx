@@ -217,33 +217,39 @@ export function Sidebar() {
       to: '/models',
       icon: <Cpu className="h-[18px] w-[18px]" strokeWidth={2} />,
       label: t('sidebar.models'),
+      testId: 'sidebar-nav-models',
     },
     {
       to: '/agents',
       icon: <Bot className="h-[18px] w-[18px]" strokeWidth={2} />,
       label: t('sidebar.agents'),
+      testId: 'sidebar-nav-agents',
     },
     {
       to: '/channels',
       icon: <Network className="h-[18px] w-[18px]" strokeWidth={2} />,
       label: t('sidebar.channels'),
+      testId: 'sidebar-nav-channels',
     },
     {
       to: '/skills',
       icon: <Puzzle className="h-[18px] w-[18px]" strokeWidth={2} />,
       label: t('sidebar.skills'),
+      testId: 'sidebar-nav-skills',
     },
     {
       to: '/cron',
       icon: <Clock className="h-[18px] w-[18px]" strokeWidth={2} />,
       label: t('sidebar.cronTasks'),
+      testId: 'sidebar-nav-cron',
     },
   ];
 
   return (
     <aside
+      data-testid="sidebar"
       className={cn(
-        'flex shrink-0 flex-col border-r bg-[#eae8e1]/60 dark:bg-background transition-all duration-300',
+        'flex min-h-0 shrink-0 flex-col overflow-hidden border-r bg-[#eae8e1]/60 dark:bg-background transition-all duration-300',
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -279,6 +285,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex flex-col px-2 gap-0.5">
         <button
+          data-testid="sidebar-new-chat"
           onClick={() => {
             const { messages } = useChatStore.getState();
             if (messages.length > 0) newSession();
@@ -307,8 +314,8 @@ export function Sidebar() {
 
       {/* Session list — below Settings, only when expanded */}
       {!sidebarCollapsed && sessions.length > 0 && (
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 mt-4 space-y-0.5 pb-2">
-          {sessionBuckets.map((bucket) =>
+        <div className="mt-4 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 space-y-0.5">
+          {sessionBuckets.map((bucket) => (
             bucket.sessions.length > 0 ? (
               <div key={bucket.key} className="pt-2">
                 <div className="px-2.5 pb-1 text-[11px] font-medium text-muted-foreground/60 tracking-tight">
@@ -363,7 +370,7 @@ export function Sidebar() {
                 })}
               </div>
             ) : null
-          )}
+          ))}
         </div>
       )}
 
@@ -371,6 +378,7 @@ export function Sidebar() {
       <div className="p-2 mt-auto">
         <NavLink
           to="/settings"
+          data-testid="sidebar-nav-settings"
           className={({ isActive }) =>
             cn(
               'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-medium transition-colors',
@@ -400,6 +408,7 @@ export function Sidebar() {
         </NavLink>
 
         <Button
+          data-testid="sidebar-open-dev-console"
           variant="ghost"
           className={cn(
             'flex items-center gap-2.5 rounded-lg px-2.5 py-2 h-auto text-[14px] font-medium transition-colors w-full mt-1',

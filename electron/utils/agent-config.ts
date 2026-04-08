@@ -2,6 +2,7 @@ import { access, copyFile, mkdir, readdir, rm } from 'fs/promises';
 import { constants } from 'fs';
 import { join, normalize } from 'path';
 import { deleteAgentChannelAccounts, listConfiguredChannels, readOpenClawConfig, writeOpenClawConfig } from './channel-config';
+import type { OpenClawConfig } from './channel-config';
 import { withConfigLock } from './config-mutex';
 import { expandPath, getOpenClawConfigDir } from './paths';
 import * as logger from './logger';
@@ -81,6 +82,8 @@ export interface AgentSummary {
   name: string;
   isDefault: boolean;
   modelDisplay: string;
+  modelRef: string | null;
+  overrideModelRef: string | null;
   inheritedModel: boolean;
   workspace: string;
   agentDir: string;
@@ -91,24 +94,33 @@ export interface AgentSummary {
 export interface AgentsSnapshot {
   agents: AgentSummary[];
   defaultAgentId: string;
+  defaultModelRef: string | null;
   configuredChannelTypes: string[];
   channelOwners: Record<string, string>;
   channelAccountOwners: Record<string, string>;
 }
 
-function formatModelLabel(model: unknown): string | null {
+function resolveModelRef(model: unknown): string | null {
   if (typeof model === 'string' && model.trim()) {
-    const trimmed = model.trim();
-    const parts = trimmed.split('/');
-    return parts[parts.length - 1] || trimmed;
+    return model.trim();
   }
 
   if (model && typeof model === 'object') {
     const primary = (model as AgentModelConfig).primary;
     if (typeof primary === 'string' && primary.trim()) {
-      const parts = primary.trim().split('/');
-      return parts[parts.length - 1] || primary.trim();
+      return primary.trim();
     }
+  }
+
+  return null;
+}
+
+function formatModelLabel(model: unknown): string | null {
+  const modelRef = resolveModelRef(model);
+  if (modelRef) {
+    const trimmed = modelRef;
+    const parts = trimmed.split('/');
+    return parts[parts.length - 1] || trimmed;
   }
 
   return null;
@@ -439,9 +451,9 @@ function listConfiguredAccountIdsForChannel(config: AgentConfigDocument, channel
     });
 }
 
-async function buildSnapshotFromConfig(config: AgentConfigDocument): Promise<AgentsSnapshot> {
+async function buildSnapshotFromConfig(config: AgentConfigDocument, preloadedChannels?: string[]): Promise<AgentsSnapshot> {
   const { entries, defaultAgentId } = normalizeAgentsConfig(config);
-  const configuredChannels = await listConfiguredChannels();
+  const configuredChannels = preloadedChannels ?? await listConfiguredChannels();
   const { channelToAgent, accountToAgent } = getChannelBindingMap(config.bindings);
   const defaultAgentIdNorm = normalizeAgentIdForBinding(defaultAgentId);
   const channelOwners: Record<string, string> = {};
@@ -487,10 +499,13 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument): Promise<Age
     channelOwners[channelType] = primaryOwner;
   }
 
-  const defaultModelLabel = formatModelLabel((config.agents as AgentsConfig | undefined)?.defaults?.model);
+  const defaultModelConfig = (config.agents as AgentsConfig | undefined)?.defaults?.model;
+  const defaultModelLabel = formatModelLabel(defaultModelConfig);
+  const defaultModelRef = resolveModelRef(defaultModelConfig);
   const agents: AgentSummary[] = entries.map((entry) => {
+    const explicitModelRef = resolveModelRef(entry.model);
     const modelLabel = formatModelLabel(entry.model) || defaultModelLabel || 'Not configured';
-    const inheritedModel = !formatModelLabel(entry.model) && Boolean(defaultModelLabel);
+    const inheritedModel = !explicitModelRef && Boolean(defaultModelLabel);
     const entryIdNorm = normalizeAgentIdForBinding(entry.id);
     const ownedChannels = agentChannelSets.get(entryIdNorm) ?? new Set<string>();
     return {
@@ -498,6 +513,8 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument): Promise<Age
       name: entry.name || (entry.id === MAIN_AGENT_ID ? MAIN_AGENT_NAME : entry.id),
       isDefault: entry.id === defaultAgentId,
       modelDisplay: modelLabel,
+      modelRef: explicitModelRef || defaultModelRef || null,
+      overrideModelRef: explicitModelRef,
       inheritedModel,
       workspace: entry.workspace || (entry.id === MAIN_AGENT_ID ? getDefaultWorkspacePath(config) : `~/.openclaw/workspace-${entry.id}`),
       agentDir: entry.agentDir || getDefaultAgentDirPath(entry.id),
@@ -511,6 +528,7 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument): Promise<Age
   return {
     agents,
     defaultAgentId,
+    defaultModelRef,
     configuredChannelTypes: configuredChannels.map((channelType) => toUiChannelType(channelType)),
     channelOwners,
     channelAccountOwners,
@@ -520,6 +538,10 @@ async function buildSnapshotFromConfig(config: AgentConfigDocument): Promise<Age
 export async function listAgentsSnapshot(): Promise<AgentsSnapshot> {
   const config = await readOpenClawConfig() as AgentConfigDocument;
   return buildSnapshotFromConfig(config);
+}
+
+export async function listAgentsSnapshotFromConfig(config: OpenClawConfig, configuredChannels?: string[]): Promise<AgentsSnapshot> {
+  return buildSnapshotFromConfig(config as AgentConfigDocument, configuredChannels);
 }
 
 export async function listConfiguredAgentIds(): Promise<string[]> {
@@ -594,6 +616,44 @@ export async function updateAgentName(agentId: string, name: string): Promise<Ag
 
     await writeOpenClawConfig(config);
     logger.info('Updated agent name', { agentId, name: normalizedName });
+    return buildSnapshotFromConfig(config);
+  });
+}
+
+function isValidModelRef(modelRef: string): boolean {
+  const firstSlash = modelRef.indexOf('/');
+  return firstSlash > 0 && firstSlash < modelRef.length - 1;
+}
+
+export async function updateAgentModel(agentId: string, modelRef: string | null): Promise<AgentsSnapshot> {
+  return withConfigLock(async () => {
+    const config = await readOpenClawConfig() as AgentConfigDocument;
+    const { agentsConfig, entries } = normalizeAgentsConfig(config);
+    const index = entries.findIndex((entry) => entry.id === agentId);
+    if (index === -1) {
+      throw new Error(`Agent "${agentId}" not found`);
+    }
+
+    const normalizedModelRef = typeof modelRef === 'string' ? modelRef.trim() : '';
+    const nextEntry: AgentListEntry = { ...entries[index] };
+
+    if (!normalizedModelRef) {
+      delete nextEntry.model;
+    } else {
+      if (!isValidModelRef(normalizedModelRef)) {
+        throw new Error('modelRef must be in "provider/model" format');
+      }
+      nextEntry.model = { primary: normalizedModelRef };
+    }
+
+    entries[index] = nextEntry;
+    config.agents = {
+      ...agentsConfig,
+      list: entries,
+    };
+
+    await writeOpenClawConfig(config);
+    logger.info('Updated agent model', { agentId, modelRef: normalizedModelRef || null });
     return buildSnapshotFromConfig(config);
   });
 }

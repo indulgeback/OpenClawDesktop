@@ -91,9 +91,25 @@ export function Channels() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const displayedChannelTypes = getPrimaryChannels();
+  const visibleChannelGroups = channelGroups;
+  const visibleAgents = agents;
+  const hasStableValue = visibleChannelGroups.length > 0 || visibleAgents.length > 0;
+  const isUsingStableValue = hasStableValue && (loading || Boolean(error));
+
+  // Use refs to read current state inside fetchPageData without making it
+  // a dependency — keeps the callback reference stable across renders so
+  // downstream useEffects don't re-execute every time data changes.
+  const channelGroupsRef = useRef(channelGroups);
+  channelGroupsRef.current = channelGroups;
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
 
   const fetchPageData = useCallback(async () => {
-    setLoading(true);
+    // Only show loading spinner on first load (stale-while-revalidate).
+    const hasData = channelGroupsRef.current.length > 0 || agentsRef.current.length > 0;
+    if (!hasData) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [channelsRes, agentsRes] = await Promise.all([
@@ -112,10 +128,13 @@ export function Channels() {
       setChannelGroups(channelsRes.channels || []);
       setAgents(agentsRes.agents || []);
     } catch (fetchError) {
+      // Preserve previous data on error — don't clear channelGroups/agents.
       setError(String(fetchError));
     } finally {
       setLoading(false);
     }
+  // Stable reference — reads state via refs, no deps needed.
+   
   }, []);
 
   useEffect(() => {
@@ -123,12 +142,30 @@ export function Channels() {
   }, [fetchPageData]);
 
   useEffect(() => {
+    // Throttle channel-status events to avoid flooding fetchPageData during AI tasks.
+    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+    let pending = false;
+
     const unsubscribe = subscribeHostEvent('gateway:channel-status', () => {
+      if (throttleTimer) {
+        pending = true;
+        return;
+      }
       void fetchPageData();
+      throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+        if (pending) {
+          pending = false;
+          void fetchPageData();
+        }
+      }, 2000);
     });
     return () => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
+      }
+      if (throttleTimer) {
+        clearTimeout(throttleTimer);
       }
     };
   }, [fetchPageData]);
@@ -143,21 +180,21 @@ export function Channels() {
   }, [fetchPageData, gatewayStatus.state]);
 
   const configuredTypes = useMemo(
-    () => channelGroups.map((group) => group.channelType),
-    [channelGroups],
+    () => visibleChannelGroups.map((group) => group.channelType),
+    [visibleChannelGroups],
   );
 
   const groupedByType = useMemo(() => {
-    return Object.fromEntries(channelGroups.map((group) => [group.channelType, group]));
-  }, [channelGroups]);
+    return Object.fromEntries(visibleChannelGroups.map((group) => [group.channelType, group]));
+  }, [visibleChannelGroups]);
 
   const configuredGroups = useMemo(() => {
     const known = displayedChannelTypes
       .map((type) => groupedByType[type])
       .filter((group): group is ChannelGroupItem => Boolean(group));
-    const unknown = channelGroups.filter((group) => !displayedChannelTypes.includes(group.channelType as ChannelType));
+    const unknown = visibleChannelGroups.filter((group) => !displayedChannelTypes.includes(group.channelType as ChannelType));
     return [...known, ...unknown];
-  }, [channelGroups, displayedChannelTypes, groupedByType]);
+  }, [visibleChannelGroups, displayedChannelTypes, groupedByType]);
 
   const unsupportedGroups = displayedChannelTypes.filter((type) => !configuredTypes.includes(type));
 
@@ -217,7 +254,7 @@ export function Channels() {
     return nextAccountId;
   };
 
-  if (loading) {
+  if (loading && !hasStableValue) {
     return (
       <div className="flex flex-col -m-6 dark:bg-background min-h-[calc(100vh-2.5rem)] items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -226,7 +263,7 @@ export function Channels() {
   }
 
   return (
-    <div className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
+    <div data-testid="channels-page" className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
@@ -245,7 +282,7 @@ export function Channels() {
               disabled={gatewayStatus.state !== 'running'}
               className="h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground transition-colors"
             >
-              <RefreshCw className="h-3.5 w-3.5 mr-2" />
+              <RefreshCw className={cn('h-3.5 w-3.5 mr-2', isUsingStableValue && 'animate-spin')} />
               {t('refresh')}
             </Button>
           </div>
@@ -368,7 +405,7 @@ export function Channels() {
                                 }}
                               >
                                 <option value="">{t('account.unassigned')}</option>
-                                {agents.map((agent) => (
+                                {visibleAgents.map((agent) => (
                                   <option key={agent.id} value={agent.id}>{agent.name}</option>
                                 ))}
                               </select>

@@ -55,6 +55,15 @@ import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.openclawpro.desktop';
+const isE2EMode =
+  process.env.OPENCLAWPRO_E2E === '1' || process.env.CLAWX_E2E === '1';
+const requestedUserDataDir =
+  process.env.OPENCLAWPRO_USER_DATA_DIR?.trim() ||
+  process.env.CLAWX_USER_DATA_DIR?.trim();
+
+if (isE2EMode && requestedUserDataDir) {
+  app.setPath('userData', requestedUserDataDir);
+}
 
 // Disable GPU hardware acceleration globally for maximum stability across
 // all GPU configurations (no GPU, integrated, discrete).
@@ -85,7 +94,7 @@ if (process.platform === 'linux') {
 // same port, then each treats the other's gateway as "orphaned" and kills
 // it — creating an infinite kill/restart loop on Windows.
 // The losing process must exit immediately so it never reaches Gateway startup.
-const gotElectronLock = app.requestSingleInstanceLock();
+const gotElectronLock = isE2EMode ? true : app.requestSingleInstanceLock();
 if (!gotElectronLock) {
   console.info(
     '[OpenClaw] Another instance already holds the single-instance lock; exiting duplicate process'
@@ -94,11 +103,12 @@ if (!gotElectronLock) {
 }
 let releaseProcessInstanceFileLock: () => void = () => {};
 let gotFileLock = true;
-if (gotElectronLock) {
+if (gotElectronLock && !isE2EMode) {
   try {
     const fileLock = acquireProcessInstanceFileLock({
       userDataDir: app.getPath('userData'),
       lockName: 'openclawpro',
+      force: true, // Electron lock already guarantees exclusivity; force-clean orphan/recycled-PID locks
     });
     gotFileLock = fileLock.acquired;
     releaseProcessInstanceFileLock = fileLock.release;
@@ -163,6 +173,9 @@ function createWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin';
   const isWindows = process.platform === 'win32';
   const useCustomTitleBar = isWindows;
+  const shouldSkipSetupForE2E =
+    process.env.OPENCLAWPRO_E2E_SKIP_SETUP === '1' ||
+    process.env.CLAWX_E2E_SKIP_SETUP === '1';
 
   const win = new BrowserWindow({
     width: 1280,
@@ -183,18 +196,38 @@ function createWindow(): BrowserWindow {
     show: false,
   });
 
-  // Handle external links
+  // Handle external links — only allow safe protocols to prevent arbitrary
+  // command execution via shell.openExternal() (e.g. file://, ms-msdt:, etc.)
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        shell.openExternal(url);
+      } else {
+        logger.warn(`Blocked openExternal for disallowed protocol: ${parsed.protocol}`);
+      }
+    } catch {
+      logger.warn(`Blocked openExternal for malformed URL: ${url}`);
+    }
     return { action: 'deny' };
   });
 
   // Load the app
   if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL);
-    win.webContents.openDevTools();
+    const rendererUrl = new URL(process.env.VITE_DEV_SERVER_URL);
+    if (shouldSkipSetupForE2E) {
+      rendererUrl.searchParams.set('e2eSkipSetup', '1');
+    }
+    win.loadURL(rendererUrl.toString());
+    if (!isE2EMode) {
+      win.webContents.openDevTools();
+    }
   } else {
-    win.loadFile(join(__dirname, '../../dist/index.html'));
+    win.loadFile(join(__dirname, '../../dist/index.html'), {
+      query: shouldSkipSetupForE2E
+        ? { e2eSkipSetup: '1' }
+        : undefined,
+    });
   }
 
   return win;
@@ -240,7 +273,7 @@ function createMainWindow(): BrowserWindow {
   });
 
   win.on('close', (event) => {
-    if (!isQuitting()) {
+    if (!isQuitting() && !isE2EMode) {
       event.preventDefault();
       win.hide();
     }
@@ -267,15 +300,19 @@ async function initialize(): Promise<void> {
     `Runtime: platform=${process.platform}/${process.arch}, electron=${process.versions.electron}, node=${process.versions.node}, packaged=${app.isPackaged}, pid=${process.pid}, ppid=${process.ppid}`
   );
 
-  // Warm up network optimization (non-blocking)
-  void warmupNetworkOptimization();
+  if (!isE2EMode) {
+    // Warm up network optimization (non-blocking)
+    void warmupNetworkOptimization();
 
-  // Initialize Telemetry early
-  await initTelemetry();
+    // Initialize Telemetry early
+    await initTelemetry();
 
-  // Apply persisted proxy settings before creating windows or network requests.
-  await applyProxySettings();
-  await syncLaunchAtStartupSettingFromStore();
+    // Apply persisted proxy settings before creating windows or network requests.
+    await applyProxySettings();
+    await syncLaunchAtStartupSettingFromStore();
+  } else {
+    logger.info('Running in E2E mode: startup side effects minimized');
+  }
 
   // Set application menu
   createMenu();
@@ -284,7 +321,9 @@ async function initialize(): Promise<void> {
   const window = createMainWindow();
 
   // Create system tray
-  createTray(window);
+  if (!isE2EMode) {
+    createTray(window);
+  }
 
   // Override security headers ONLY for the OpenClaw Gateway Control UI.
   // The URL filter ensures this callback only fires for gateway requests,
@@ -328,34 +367,43 @@ async function initialize(): Promise<void> {
   // Repair any bootstrap files that only contain OpenClaw markers (no OpenClaw
   // template content). This fixes a race condition where ensureOpenClawProContext()
   // previously created the file before the gateway could seed the full template.
-  void repairOpenClawProOnlyBootstrapFiles().catch((error) => {
-    logger.warn('Failed to repair bootstrap files:', error);
-  });
+  if (!isE2EMode) {
+    void repairOpenClawProOnlyBootstrapFiles().catch((error) => {
+      logger.warn('Failed to repair bootstrap files:', error);
+    });
+  }
 
   // Pre-deploy built-in skills (feishu-doc, feishu-drive, feishu-perm, feishu-wiki)
   // to ~/.openclaw/skills/ so they are immediately available without manual install.
-  void ensureBuiltinSkillsInstalled().catch((error) => {
-    logger.warn('Failed to install built-in skills:', error);
-  });
+  if (!isE2EMode) {
+    void ensureBuiltinSkillsInstalled().catch((error) => {
+      logger.warn('Failed to install built-in skills:', error);
+    });
+  }
 
   // Pre-deploy bundled third-party skills from resources/preinstalled-skills.
   // This installs full skill directories (not only SKILL.md) in an idempotent,
   // non-destructive way and never blocks startup.
-  void ensurePreinstalledSkillsInstalled().catch((error) => {
-    logger.warn('Failed to install preinstalled skills:', error);
-  });
+  if (!isE2EMode) {
+    void ensurePreinstalledSkillsInstalled().catch((error) => {
+      logger.warn('Failed to install preinstalled skills:', error);
+    });
+  }
 
-  // Pre-deploy/upgrade bundled OpenClaw plugins (dingtalk, wecom, qqbot, feishu, wechat)
+  // Pre-deploy/upgrade bundled OpenClaw plugins (dingtalk, wecom, feishu, wechat)
   // to ~/.openclaw/extensions/ so they are always up-to-date after an app update.
-  void ensureAllBundledPluginsInstalled().catch((error) => {
-    logger.warn('Failed to install/upgrade bundled plugins:', error);
-  });
+  // Note: qqbot was moved to a built-in channel in OpenClaw 3.31.
+  if (!isE2EMode) {
+    void ensureAllBundledPluginsInstalled().catch((error) => {
+      logger.warn('Failed to install/upgrade bundled plugins:', error);
+    });
+  }
 
   // Bridge gateway and host-side events before any auto-start logic runs, so
   // renderer subscribers observe the full startup lifecycle.
   gatewayManager.on('status', (status: { state: string }) => {
     hostEventBus.emit('gateway:status', status);
-    if (status.state === 'running') {
+    if (status.state === 'running' && !isE2EMode) {
       void ensureOpenClawProContext().catch((error) => {
         logger.warn('Failed to re-merge OpenClaw context after gateway reconnect:', error);
       });
@@ -428,7 +476,7 @@ async function initialize(): Promise<void> {
 
   // Start Gateway automatically (this seeds missing bootstrap files with full templates)
   const gatewayAutoStart = await getSetting('gatewayAutoStart');
-  if (gatewayAutoStart) {
+  if (!isE2EMode && gatewayAutoStart) {
     try {
       await syncAllProviderAuthToRuntime();
       logger.debug('Auto-starting Gateway...');
@@ -438,28 +486,31 @@ async function initialize(): Promise<void> {
       logger.error('Gateway auto-start failed:', error);
       mainWindow?.webContents.send('gateway:error', String(error));
     }
+  } else if (isE2EMode) {
+    logger.info('Gateway auto-start skipped in E2E mode');
   } else {
     logger.info('Gateway auto-start disabled in settings');
   }
 
   // Merge OpenClaw context snippets into the workspace bootstrap files.
   // The gateway seeds workspace files asynchronously after its HTTP server
-  // is ready, so ensureOpenClawProContext will retry until the target files appear.
-  void ensureOpenClawProContext().catch((error) => {
-    logger.warn('Failed to merge OpenClaw context into workspace:', error);
-  });
+  if (!isE2EMode) {
+    void ensureOpenClawProContext().catch((error) => {
+      logger.warn('Failed to merge OpenClaw context into workspace:', error);
+    });
+  }
 
   // Auto-install openclaw CLI and shell completions (non-blocking).
-  void autoInstallCliIfNeeded((installedPath) => {
-    mainWindow?.webContents.send('openclaw:cli-installed', installedPath);
-  })
-    .then(() => {
+  if (!isE2EMode) {
+    void autoInstallCliIfNeeded((installedPath) => {
+      mainWindow?.webContents.send('openclaw:cli-installed', installedPath);
+    }).then(() => {
       generateCompletionCache();
       installCompletionToProfile();
-    })
-    .catch((error) => {
+    }).catch((error) => {
       logger.warn('CLI auto-install failed:', error);
     });
+  }
 }
 
 if (gotTheLock) {
@@ -524,7 +575,7 @@ if (gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
+    if (process.platform !== 'darwin' || isE2EMode) {
       app.quit();
     }
   });

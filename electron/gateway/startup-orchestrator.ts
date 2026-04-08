@@ -9,13 +9,15 @@ export interface ExistingGatewayInfo {
 
 type StartupHooks = {
   port: number;
-  ownedPid?: number;
+  ownedPid?: never; // Removed: pid is now read dynamically in findExistingGateway to avoid stale-snapshot bug
   shouldWaitForPortFree: boolean;
   maxStartAttempts?: number;
+  /** Returns true when the manager still owns a living Gateway process (e.g. after a code-1012 in-process restart). */
+  hasOwnedProcess: () => boolean;
   resetStartupStderrLines: () => void;
   getStartupStderrLines: () => string[];
   assertLifecycle: (phase: string) => void;
-  findExistingGateway: (port: number, ownedPid?: number) => Promise<ExistingGatewayInfo | null>;
+  findExistingGateway: (port: number) => Promise<ExistingGatewayInfo | null>;
   connect: (port: number, externalToken?: string) => Promise<void>;
   onConnectedToExistingGateway: () => void;
   waitForPortFree: (port: number) => Promise<void>;
@@ -39,12 +41,28 @@ export async function runGatewayStartupSequence(hooks: StartupHooks): Promise<vo
 
     try {
       logger.debug('Checking for existing Gateway...');
-      const existing = await hooks.findExistingGateway(hooks.port, hooks.ownedPid);
+      const existing = await hooks.findExistingGateway(hooks.port);
       hooks.assertLifecycle('start/find-existing');
       if (existing) {
         logger.debug(`Found existing Gateway on port ${existing.port}`);
         await hooks.connect(existing.port, existing.externalToken);
         hooks.assertLifecycle('start/connect-existing');
+        hooks.onConnectedToExistingGateway();
+        return;
+      }
+
+      // When the Gateway did an in-process restart (WS close 1012), the
+      // UtilityProcess is still alive but its WS server may be mid-rebuild,
+      // so findExistingGateway's quick probe returns null.  Rather than
+      // waiting for the port to free (it never will — the process holds it)
+      // and then spawning a duplicate, wait for the existing process to
+      // become ready and reconnect to it.
+      if (hooks.hasOwnedProcess()) {
+        logger.info('Owned Gateway process still alive (likely in-process restart); waiting for it to become ready');
+        await hooks.waitForReady(hooks.port);
+        hooks.assertLifecycle('start/wait-ready-owned');
+        await hooks.connect(hooks.port);
+        hooks.assertLifecycle('start/connect-owned');
         hooks.onConnectedToExistingGateway();
         return;
       }

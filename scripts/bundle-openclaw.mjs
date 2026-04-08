@@ -179,6 +179,61 @@ while (queue.length > 0) {
 echo`   Found ${collected.size} total packages (direct + transitive)`;
 echo`   Skipped ${skippedDevCount} dev-only package references`;
 
+// 4b. Collect extra packages required by ClawX's Electron main process that are
+//     NOT deps of openclaw.  These are resolved from openclaw's context at runtime
+//     (via createRequire from the openclaw directory) so they must live in the
+//     bundled openclaw/node_modules/.
+//
+//     For each package we resolve it from the workspace's own node_modules,
+//     then BFS its transitive deps exactly like we did for openclaw above.
+const EXTRA_BUNDLED_PACKAGES = [
+  '@whiskeysockets/baileys',   // WhatsApp channel (was a dep of old clawdbot, not openclaw)
+];
+
+let extraCount = 0;
+for (const pkgName of EXTRA_BUNDLED_PACKAGES) {
+  const pkgLink = path.join(NODE_MODULES, ...pkgName.split('/'));
+  if (!fs.existsSync(pkgLink)) {
+    echo`   ⚠️  Extra package ${pkgName} not found in workspace node_modules, skipping.`;
+    continue;
+  }
+
+  let pkgReal;
+  try { pkgReal = fs.realpathSync(pkgLink); } catch { continue; }
+
+  if (!collected.has(pkgReal)) {
+    collected.set(pkgReal, pkgName);
+    extraCount++;
+
+    // BFS this package's own transitive deps
+    const depVirtualNM = getVirtualStoreNodeModules(pkgReal);
+    if (depVirtualNM) {
+      const extraQueue = [{ nodeModulesDir: depVirtualNM, skipPkg: pkgName }];
+      while (extraQueue.length > 0) {
+        const { nodeModulesDir, skipPkg } = extraQueue.shift();
+        const packages = listPackages(nodeModulesDir);
+        for (const { name, fullPath } of packages) {
+          if (name === skipPkg) continue;
+          if (SKIP_PACKAGES.has(name) || SKIP_SCOPES.some(s => name.startsWith(s))) continue;
+          let realPath;
+          try { realPath = fs.realpathSync(fullPath); } catch { continue; }
+          if (collected.has(realPath)) continue;
+          collected.set(realPath, name);
+          extraCount++;
+          const innerVirtualNM = getVirtualStoreNodeModules(realPath);
+          if (innerVirtualNM && innerVirtualNM !== nodeModulesDir) {
+            extraQueue.push({ nodeModulesDir: innerVirtualNM, skipPkg: name });
+          }
+        }
+      }
+    }
+  }
+}
+
+if (extraCount > 0) {
+  echo`   Added ${extraCount} extra packages (+ transitive deps) for Electron main process`;
+}
+
 // 5. Copy all collected packages into OUTPUT/node_modules/ (flat structure)
 //
 // IMPORTANT: BFS guarantees direct deps are encountered before transitive deps.
@@ -209,6 +264,65 @@ for (const [realPath, pkgName] of collected) {
   } catch (err) {
     echo`   ⚠️  Skipped ${pkgName}: ${err.message}`;
   }
+}
+
+// 5b. Merge built-in extension node_modules into top-level node_modules
+//
+// OpenClaw 3.31+ ships built-in extensions (telegram, discord, etc.) under
+// dist/extensions/<ext>/node_modules/.  The Rollup bundler creates shared
+// chunks at dist/ root (e.g. sticker-cache-*.js) that eagerly import
+// extension-specific packages like "grammy".  Node.js resolves bare
+// specifiers from the importing file's directory upward:
+//   dist/ → openclaw/ → openclaw/node_modules/
+// It does NOT search dist/extensions/telegram/node_modules/.
+//
+// Fix: copy extension deps into the top-level node_modules/ so they are
+// resolvable from shared chunks.  Skip-if-exists preserves version priority
+// (openclaw's own deps take precedence over extension deps).
+const extensionsDir = path.join(OUTPUT, 'dist', 'extensions');
+let mergedExtCount = 0;
+if (fs.existsSync(extensionsDir)) {
+  for (const extEntry of fs.readdirSync(extensionsDir, { withFileTypes: true })) {
+    if (!extEntry.isDirectory()) continue;
+    const extNM = path.join(extensionsDir, extEntry.name, 'node_modules');
+    if (!fs.existsSync(extNM)) continue;
+
+    for (const pkgEntry of fs.readdirSync(extNM, { withFileTypes: true })) {
+      if (!pkgEntry.isDirectory() || pkgEntry.name === '.bin') continue;
+      const srcPkg = path.join(extNM, pkgEntry.name);
+
+      if (pkgEntry.name.startsWith('@')) {
+        // Scoped package — iterate sub-entries
+        let scopeEntries;
+        try { scopeEntries = fs.readdirSync(srcPkg, { withFileTypes: true }); } catch { continue; }
+        for (const scopeEntry of scopeEntries) {
+          if (!scopeEntry.isDirectory()) continue;
+          const scopedName = `${pkgEntry.name}/${scopeEntry.name}`;
+          if (copiedNames.has(scopedName)) continue;
+          const srcScoped = path.join(srcPkg, scopeEntry.name);
+          const destScoped = path.join(outputNodeModules, pkgEntry.name, scopeEntry.name);
+          try {
+            fs.mkdirSync(normWin(path.dirname(destScoped)), { recursive: true });
+            fs.cpSync(normWin(srcScoped), normWin(destScoped), { recursive: true, dereference: true });
+            copiedNames.add(scopedName);
+            mergedExtCount++;
+          } catch { /* skip on copy error */ }
+        }
+      } else {
+        if (copiedNames.has(pkgEntry.name)) continue;
+        const destPkg = path.join(outputNodeModules, pkgEntry.name);
+        try {
+          fs.cpSync(normWin(srcPkg), normWin(destPkg), { recursive: true, dereference: true });
+          copiedNames.add(pkgEntry.name);
+          mergedExtCount++;
+        } catch { /* skip on copy error */ }
+      }
+    }
+  }
+}
+
+if (mergedExtCount > 0) {
+  echo`   Merged ${mergedExtCount} extension packages into top-level node_modules`;
 }
 
 // 6. Clean up the bundle to reduce package size
@@ -403,34 +517,7 @@ function patchBrokenModules(nodeModulesDir) {
     ].join('\n'),
   };
   const replacePatches = [
-    {
-      rel: '@mariozechner/pi-coding-agent/dist/core/bash-executor.js',
-      search: `        const child = spawn(shell, [...args, command], {
-            detached: true,
-            env: getShellEnv(),
-            stdio: ["ignore", "pipe", "pipe"],
-        });`,
-      replace: `        const child = spawn(shell, [...args, command], {
-            detached: true,
-            env: getShellEnv(),
-            stdio: ["ignore", "pipe", "pipe"],
-            windowsHide: true,
-        });`,
-    },
-    {
-      rel: '@mariozechner/pi-coding-agent/dist/core/exec.js',
-      search: `        const proc = spawn(command, args, {
-            cwd,
-            shell: false,
-            stdio: ["ignore", "pipe", "pipe"],
-        });`,
-      replace: `        const proc = spawn(command, args, {
-            cwd,
-            shell: false,
-            stdio: ["ignore", "pipe", "pipe"],
-            windowsHide: true,
-        });`,
-    },
+    // Note: @mariozechner/pi-coding-agent is no longer a dep of openclaw 3.31.
   ];
 
   let count = 0;
@@ -457,6 +544,84 @@ function patchBrokenModules(nodeModulesDir) {
       count++;
     }
   }
+  // lru-cache CJS/ESM interop fix (recursive):
+  // Multiple versions of lru-cache may exist in the output tree — not just
+  // at node_modules/lru-cache/ but also nested inside other packages.
+  // Older CJS versions (v5, v6) export the class via `module.exports = LRUCache`
+  // without a named `LRUCache` property, so `import { LRUCache } from 'lru-cache'`
+  // fails in Node.js 22+ ESM interop (used by Electron 40+).
+  // We recursively scan the entire output for ALL lru-cache installations and
+  // patch each CJS entry to ensure `exports.LRUCache` always exists.
+  function patchAllLruCacheInstances(rootDir) {
+    let lruCount = 0;
+    const stack = [rootDir];
+    while (stack.length > 0) {
+      const dir = stack.pop();
+      let entries;
+      try { entries = fs.readdirSync(normWin(dir), { withFileTypes: true }); } catch { continue; }
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        let isDirectory = entry.isDirectory();
+        if (!isDirectory) {
+          // pnpm layout may contain symlink/junction directories on Windows.
+          try { isDirectory = fs.statSync(normWin(fullPath)).isDirectory(); } catch { isDirectory = false; }
+        }
+        if (!isDirectory) continue;
+        if (entry.name === 'lru-cache') {
+          const pkgPath = path.join(fullPath, 'package.json');
+          if (!fs.existsSync(normWin(pkgPath))) { stack.push(fullPath); continue; }
+          try {
+            const pkg = JSON.parse(fs.readFileSync(normWin(pkgPath), 'utf8'));
+            if (pkg.type === 'module') continue; // ESM version — already has named exports
+            const mainFile = pkg.main || 'index.js';
+            const entryFile = path.join(fullPath, mainFile);
+            if (!fs.existsSync(normWin(entryFile))) continue;
+            const original = fs.readFileSync(normWin(entryFile), 'utf8');
+            if (!original.includes('exports.LRUCache')) {
+              const patched = [
+                original,
+                '',
+                '// ClawX patch: add LRUCache named export for Node.js 22+ ESM interop',
+                'if (typeof module.exports === "function" && !module.exports.LRUCache) {',
+                '  module.exports.LRUCache = module.exports;',
+                '}',
+                '',
+              ].join('\n');
+              fs.writeFileSync(normWin(entryFile), patched, 'utf8');
+              lruCount++;
+              echo`   🩹 Patched lru-cache CJS (v${pkg.version}) at ${path.relative(rootDir, fullPath)}`;
+            }
+
+            // lru-cache v7 ESM entry exports default only; add named export.
+            const moduleFile = typeof pkg.module === 'string' ? pkg.module : null;
+            if (moduleFile) {
+              const esmEntry = path.join(fullPath, moduleFile);
+              if (fs.existsSync(normWin(esmEntry))) {
+                const esmOriginal = fs.readFileSync(normWin(esmEntry), 'utf8');
+                if (
+                  esmOriginal.includes('export default LRUCache') &&
+                  !esmOriginal.includes('export { LRUCache')
+                ) {
+                  const esmPatched = [esmOriginal, '', 'export { LRUCache }', ''].join('\n');
+                  fs.writeFileSync(normWin(esmEntry), esmPatched, 'utf8');
+                  lruCount++;
+                  echo`   🩹 Patched lru-cache ESM (v${pkg.version}) at ${path.relative(rootDir, fullPath)}`;
+                }
+              }
+            }
+          } catch (err) {
+            echo`   ⚠️  Failed to patch lru-cache at ${fullPath}: ${err.message}`;
+          }
+        } else {
+          stack.push(fullPath);
+        }
+      }
+    }
+    return lruCount;
+  }
+  const lruPatched = patchAllLruCacheInstances(nodeModulesDir);
+  count += lruPatched;
+
   if (count > 0) {
     echo`   🩹 Patched ${count} broken module(s) in node_modules`;
   }
@@ -538,76 +703,9 @@ function patchBundledRuntime(outputDir) {
 \t\t}) ? { shell: true } : {}
 \t});`,
     },
-    {
-      label: 'agent scope command runner',
-      target: () => findFirstFileByName(path.join(outputDir, 'dist', 'plugin-sdk'), /^agent-scope-.*\.js$/),
-      search: `\tconst child = spawn(resolvedCommand, finalArgv.slice(1), {
-\t\tstdio,
-\t\tcwd,
-\t\tenv: resolvedEnv,
-\t\twindowsVerbatimArguments,
-\t\t...shouldSpawnWithShell({
-\t\t\tresolvedCommand,
-\t\t\tplatform: process$1.platform
-\t\t}) ? { shell: true } : {}
-\t});`,
-      replace: `\tconst child = spawn(resolvedCommand, finalArgv.slice(1), {
-\t\tstdio,
-\t\tcwd,
-\t\tenv: resolvedEnv,
-\t\twindowsVerbatimArguments,
-\t\twindowsHide: true,
-\t\t...shouldSpawnWithShell({
-\t\t\tresolvedCommand,
-\t\t\tplatform: process$1.platform
-\t\t}) ? { shell: true } : {}
-\t});`,
-    },
-    {
-      label: 'chrome launcher',
-      target: () => findFirstFileByName(path.join(outputDir, 'dist', 'plugin-sdk'), /^chrome-.*\.js$/),
-      search: `\t\treturn spawn(exe.path, args, {
-\t\t\tstdio: "pipe",
-\t\t\tenv: {
-\t\t\t\t...process.env,
-\t\t\t\tHOME: os.homedir()
-\t\t\t}
-\t\t});`,
-      replace: `\t\treturn spawn(exe.path, args, {
-\t\t\tstdio: "pipe",
-\t\t\twindowsHide: true,
-\t\t\tenv: {
-\t\t\t\t...process.env,
-\t\t\t\tHOME: os.homedir()
-\t\t\t}
-\t\t});`,
-    },
-    {
-      label: 'qmd runner',
-      target: () => findFirstFileByName(path.join(outputDir, 'dist', 'plugin-sdk'), /^qmd-manager-.*\.js$/),
-      search: `\t\t\tconst child = spawn(resolveWindowsCommandShim(this.qmd.command), args, {
-\t\t\t\tenv: this.env,
-\t\t\t\tcwd: this.workspaceDir
-\t\t\t});`,
-      replace: `\t\t\tconst child = spawn(resolveWindowsCommandShim(this.qmd.command), args, {
-\t\t\t\tenv: this.env,
-\t\t\t\tcwd: this.workspaceDir,
-\t\t\t\twindowsHide: true
-\t\t\t});`,
-    },
-    {
-      label: 'mcporter runner',
-      target: () => findFirstFileByName(path.join(outputDir, 'dist', 'plugin-sdk'), /^qmd-manager-.*\.js$/),
-      search: `\t\t\tconst child = spawn(resolveWindowsCommandShim("mcporter"), args, {
-\t\t\t\tenv: this.env,
-\t\t\t\tcwd: this.workspaceDir
-\t\t\t});`,
-      replace: `\t\t\tconst child = spawn(resolveWindowsCommandShim("mcporter"), args, {
-\t\t\t\tenv: this.env,
-\t\t\t\tcwd: this.workspaceDir,
-\t\t\t\twindowsHide: true
-\t\t\t});`,
-    },
+    // Note: OpenClaw 3.31 removed the hash-suffixed agent-scope-*.js, chrome-*.js,
+    // and qmd-manager-*.js files from dist/plugin-sdk/. Patches for those spawn
+    // sites are no longer needed — the runtime now uses windowsHide natively.
   ];
 
   let count = 0;

@@ -101,7 +101,8 @@ Complete the entire setup—from installation to your first AI interaction—thr
 ### 💬 Intelligent Chat Interface
 
 Communicate with AI agents through a modern chat experience. Support for multiple conversation contexts, message history, rich content rendering with Markdown, and direct `@agent` routing in the main composer for multi-agent setups.
-When you target another agent with `@agent`, OpenClaw switches into that agent's own conversation context directly instead of relaying through the default agent. Agent workspaces stay separate by default, and stronger isolation depends on OpenClaw sandbox settings.
+When you target another agent with `@agent`, ClawX switches into that agent's own conversation context directly instead of relaying through the default agent. Agent workspaces stay separate by default, and stronger isolation depends on OpenClaw sandbox settings.
+Each agent can also override its own `provider/model` runtime setting; agents without overrides continue inheriting the global default model.
 
 ### 📡 Multi-Channel Management
 
@@ -112,6 +113,7 @@ OpenClaw now also bundles Tencent's official personal WeChat channel plugin, so 
 ### ⏰ Cron-Based Automation
 
 Schedule AI tasks to run automatically. Define triggers, set intervals, and let your AI agents work around the clock without manual intervention.
+The Cron page now lets you configure external delivery directly in the task form with separate sender-account and recipient-target selectors. For supported channels, recipient targets are discovered automatically from channel directories or known session history, so you no longer need to edit `jobs.json` by hand.
 
 ### 🧩 Extensible Skill System
 
@@ -129,6 +131,7 @@ Environment variables for bundled search skills:
 
 Connect to multiple AI providers (OpenAI, Anthropic, and more) with credentials stored securely in your system's native keychain. OpenAI supports both API key and browser OAuth (Codex subscription) sign-in.
 For **Custom** providers used with OpenAI-compatible gateways, you can set a custom `User-Agent` in **Settings → AI Providers → Edit Provider** for compatibility-sensitive endpoints.
+When a compatible gateway rejects `/models` for non-auth reasons, ClawX automatically falls back to a lightweight `/chat/completions` or `/responses` probe during API key validation.
 
 ### 🌙 Adaptive Theming
 
@@ -335,6 +338,7 @@ Chain multiple skills together to create sophisticated automation pipelines. Pro
 │   ├── i18n/                # Localization resources
 │   └── types/               # TypeScript type definitions
 ├── tests/
+│   ├── e2e/                 # Playwright Electron end-to-end smoke tests
 │   └── unit/                # Vitest unit/integration-like tests
 ├── resources/                # Static assets (icons/images)
 └── scripts/                  # Build and utility scripts
@@ -353,6 +357,8 @@ pnpm typecheck            # TypeScript validation
 
 # Testing
 pnpm test                 # Run unit tests
+pnpm run test:e2e         # Run Electron E2E smoke tests with Playwright
+pnpm run test:e2e:headed  # Run Electron E2E tests with a visible window
 pnpm run comms:replay     # Compute communication replay metrics
 pnpm run comms:baseline   # Refresh communication baseline snapshot
 pnpm run comms:compare    # Compare replay metrics against baseline thresholds
@@ -366,6 +372,8 @@ pnpm package:win          # Package for Windows
 pnpm package:linux        # Package for Linux
 ```
 
+On headless Linux, run Electron tests under a display server such as `xvfb-run -a pnpm run test:e2e`.
+
 ### Communication Regression Checks
 
 When a PR changes communication paths (gateway events, chat runtime send/receive flow, channel delivery, or transport fallback), run:
@@ -376,6 +384,28 @@ pnpm run comms:compare
 ```
 
 `comms-regression` in CI enforces required scenarios and threshold checks.
+
+### Electron E2E Tests
+
+The Playwright Electron suite launches the packaged renderer and main process
+from `dist/` and `dist-electron/`, so it does not require manually running
+`pnpm dev` first.
+
+`pnpm run test:e2e` automatically:
+
+- builds the renderer and Electron bundles with `pnpm run build:vite`
+- starts Electron in an isolated E2E mode with a temporary `HOME`
+- uses a temporary ClawX `userData` directory
+- skips heavy startup side effects such as gateway auto-start, bundled skill
+  installation, tray creation, and CLI auto-install
+
+The first two baseline specs cover:
+
+- first-launch setup wizard visibility on a fresh profile
+- skipping setup and navigating to the Models page inside the Electron app
+
+Add future Electron flows under `tests/e2e/` and reuse the shared fixture in
+`tests/e2e/fixtures/electron.ts`.
 
 ### Tech Stack
 

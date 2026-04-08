@@ -16,7 +16,7 @@ describe('GatewayManager heartbeat recovery', () => {
     vi.setSystemTime(new Date('2026-03-19T00:00:00.000Z'));
   });
 
-  it('terminates stale socket only after 3 consecutive heartbeat misses', async () => {
+  it('logs warning but does NOT terminate socket after consecutive heartbeat misses', async () => {
     const { GatewayManager } = await import('@electron/gateway/manager');
     const manager = new GatewayManager();
 
@@ -39,7 +39,9 @@ describe('GatewayManager heartbeat recovery', () => {
     vi.advanceTimersByTime(120_000);
 
     expect(ws.ping).toHaveBeenCalledTimes(3);
-    expect(ws.terminate).toHaveBeenCalledTimes(1);
+    // Heartbeat timeout is now observability-only — socket should NOT be terminated.
+    // Process liveness is detected via child.on('exit'), socket disconnects via ws.on('close').
+    expect(ws.terminate).not.toHaveBeenCalled();
 
     (manager as unknown as { connectionMonitor: { clear: () => void } }).connectionMonitor.clear();
   });

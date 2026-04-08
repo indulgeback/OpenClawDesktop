@@ -1,12 +1,12 @@
 /**
  * Device OAuth Manager
  *
- * Delegates MiniMax and Qwen OAuth to the OpenClaw extension oauth.ts functions
- * imported directly from the bundled openclaw package at build time.
+ * Delegates Qwen OAuth to the OpenClaw extension oauth.ts function and uses
+ * the local MiniMax OAuth implementation.
  *
  * This approach:
- * - Avoids hardcoding client_id (lives in openclaw extension)
- * - Avoids duplicating HTTP OAuth logic
+ * - Keeps MiniMax OAuth self-contained for better upgrade stability
+ * - Reuses the bundled Qwen flow to avoid duplicating that protocol
  * - Avoids spawning CLI process (which requires interactive TTY)
  * - Works identically on macOS, Windows, and Linux
  *
@@ -24,15 +24,11 @@ import { getProviderDefaultModel } from './provider-registry';
 import { isOpenClawPresent } from './paths';
 import { proxyAwareFetch } from './proxy-fetch';
 import {
-  loginMiniMaxPortalOAuth,
-  type MiniMaxOAuthToken,
-  type MiniMaxRegion,
-} from '../../node_modules/openclaw/extensions/minimax-portal-auth/oauth';
-import {
   loginQwenPortalOAuth,
   type QwenOAuthToken,
 } from '../../node_modules/openclaw/extensions/qwen-portal-auth/oauth';
 import { saveOAuthTokenToOpenClaw, setOpenClawDefaultModelWithOverride } from './openclaw-auth';
+import { loginMiniMaxPortalOAuth, type MiniMaxOAuthToken, type MiniMaxRegion } from './minimax-oauth';
 
 export type OAuthProviderType = 'minimax-portal' | 'minimax-portal-cn' | 'qwen-portal';
 export type { MiniMaxRegion };

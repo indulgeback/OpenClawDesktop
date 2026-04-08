@@ -15,7 +15,7 @@ export const PORTS = {
 
   /** Local host API server port */
   OPENCLAWPRO_HOST_API: 3210,
-
+  CLAWX_HOST_API: 3210,
   /** OpenClaw Gateway port */
   OPENCLAW_GATEWAY: 18789,
 } as const;
@@ -23,10 +23,26 @@ export const PORTS = {
 /**
  * Get port from environment or default
  */
+const PORT_KEY_ALIASES: Partial<Record<keyof typeof PORTS, Array<keyof typeof PORTS>>> = {
+  OPENCLAWPRO_HOST_API: ['CLAWX_HOST_API'],
+  CLAWX_HOST_API: ['OPENCLAWPRO_HOST_API'],
+};
+
 export function getPort(key: keyof typeof PORTS): number {
-  const envKey = `OPENCLAWPRO_PORT_${key}`;
-  const envValue = process.env[envKey];
-  return envValue ? parseInt(envValue, 10) : PORTS[key];
+  const candidateKeys = [key, ...(PORT_KEY_ALIASES[key] ?? [])];
+
+  for (const candidateKey of candidateKeys) {
+    for (const envKey of [`OPENCLAWPRO_PORT_${candidateKey}`, `CLAWX_PORT_${candidateKey}`]) {
+      const envValue = process.env[envKey];
+      if (!envValue) continue;
+      const parsed = parseInt(envValue, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return PORTS[key];
 }
 
 /**

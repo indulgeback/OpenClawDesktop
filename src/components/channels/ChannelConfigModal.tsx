@@ -3,8 +3,6 @@ import {
   X,
   Loader2,
   QrCode,
-  ExternalLink,
-  BookOpen,
   Eye,
   EyeOff,
   Check,
@@ -478,20 +476,6 @@ export function ChannelConfigModal({
     } catch (error) {
       toast.error(t('toast.configFailed', { error: String(error) }));
       setConnecting(false);
-    }
-  };
-
-  const openDocs = () => {
-    if (!meta?.docsUrl) return;
-    const url = t(meta.docsUrl);
-    try {
-      if (window.electron?.openExternal) {
-        window.electron.openExternal(url);
-      } else {
-        window.open(url, '_blank');
-      }
-    } catch {
-      window.open(url, '_blank');
     }
   };
 
