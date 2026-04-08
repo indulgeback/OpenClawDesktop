@@ -1218,7 +1218,7 @@ function ProviderContent({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <Label>{t('provider.label')}</Label>
-          {selectedProvider && effectiveProviderDocsUrl && (
+          {/* {selectedProvider && effectiveProviderDocsUrl && (
             <a
               href={effectiveProviderDocsUrl}
               target="_blank"
@@ -1228,7 +1228,7 @@ function ProviderContent({
               {t('settings:aiProviders.dialog.customDoc')}
               <ExternalLink className="h-3 w-3" />
             </a>
-          )}
+          )} */}
         </div>
         <div className="relative" ref={providerMenuRef}>
           <button
