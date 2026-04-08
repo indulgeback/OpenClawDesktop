@@ -71,22 +71,22 @@ export class AppUpdater extends EventEmitter {
 
     autoUpdater.logger = {
       info: (msg: string) => {
-        if (!msg.toLowerCase().includes('clawx')) {
+        if (!msg.toLowerCase().includes('OpenClaw')) {
           logger.info('[Updater]', msg);
         }
       },
       warn: (msg: string) => {
-        if (!msg.toLowerCase().includes('clawx')) {
+        if (!msg.toLowerCase().includes('OpenClaw')) {
           logger.warn('[Updater]', msg);
         }
       },
       error: (msg: string) => {
-        if (!msg.toLowerCase().includes('clawx')) {
+        if (!msg.toLowerCase().includes('OpenClaw')) {
           logger.error('[Updater]', msg);
         }
       },
       debug: (msg: string) => {
-        if (!msg.toLowerCase().includes('clawx')) {
+        if (!msg.toLowerCase().includes('OpenClaw')) {
           logger.debug('[Updater]', msg);
         }
       },

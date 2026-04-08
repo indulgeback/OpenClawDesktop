@@ -8,10 +8,7 @@ import {
 } from '../utils/device-identity';
 import { logger } from '../utils/logger';
 
-export async function probeGatewayReady(
-  port: number,
-  timeoutMs = 1500,
-): Promise<boolean> {
+export async function probeGatewayReady(port: number, timeoutMs = 1500): Promise<boolean> {
   return await new Promise<boolean>((resolve) => {
     const testWs = new WebSocket(`ws://localhost:${port}/ws`);
     let settled = false;
@@ -143,7 +140,7 @@ export function buildGatewayConnectFrame(options: {
         maxProtocol: 3,
         client: {
           id: clientId,
-          displayName: 'OpenClawPro',
+          displayName: 'OpenClaw',
           version: '0.1.0',
           platform: options.platform,
           mode: clientMode,
@@ -269,8 +266,10 @@ export async function connectGatewaySocket(options: {
         const message = JSON.parse(data.toString());
         if (
           !challengeReceived &&
-          typeof message === 'object' && message !== null &&
-          message.type === 'event' && message.event === 'connect.challenge'
+          typeof message === 'object' &&
+          message !== null &&
+          message.type === 'event' &&
+          message.event === 'connect.challenge'
         ) {
           challengeReceived = true;
           if (challengeTimer) {
@@ -295,7 +294,9 @@ export async function connectGatewaySocket(options: {
 
     ws.on('close', (code, reason) => {
       const reasonStr = reason?.toString() || 'unknown';
-      logger.warn(`Gateway WebSocket closed (code=${code}, reason=${reasonStr}, handshake=${handshakeComplete ? 'ok' : 'pending'})`);
+      logger.warn(
+        `Gateway WebSocket closed (code=${code}, reason=${reasonStr}, handshake=${handshakeComplete ? 'ok' : 'pending'})`
+      );
       if (!handshakeComplete) {
         rejectOnce(new Error(`WebSocket closed before handshake: ${reasonStr}`));
         return;
@@ -305,7 +306,10 @@ export async function connectGatewaySocket(options: {
     });
 
     ws.on('error', (error) => {
-      if (error.message?.includes('closed before handshake') || (error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+      if (
+        error.message?.includes('closed before handshake') ||
+        (error as NodeJS.ErrnoException).code === 'ECONNREFUSED'
+      ) {
         logger.debug(`Gateway WebSocket connection error (transient): ${error.message}`);
       } else {
         logger.error('Gateway WebSocket error:', error);

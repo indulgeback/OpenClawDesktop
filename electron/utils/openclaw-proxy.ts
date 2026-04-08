@@ -6,18 +6,18 @@ import { withConfigLock } from './config-mutex';
 interface SyncProxyOptions {
   /**
    * When true, keep an existing channels.telegram.proxy value if proxy is
-   * currently disabled in OpenClawPro settings.
+   * currently disabled in OpenClaw settings.
    */
   preserveExistingWhenDisabled?: boolean;
 }
 
 /**
- * Sync OpenClawPro global proxy settings into OpenClaw channel config where the
+ * Sync OpenClaw global proxy settings into OpenClaw channel config where the
  * upstream runtime expects an explicit per-channel proxy knob.
  */
 export async function syncProxyConfigToOpenClaw(
   settings: ProxySettings,
-  options: SyncProxyOptions = {},
+  options: SyncProxyOptions = {}
 ): Promise<void> {
   return withConfigLock(async () => {
     const config = await readOpenClawConfig();
@@ -30,12 +30,14 @@ export async function syncProxyConfigToOpenClaw(
     const resolved = resolveProxySettings(settings);
     const preserveExistingWhenDisabled = options.preserveExistingWhenDisabled !== false;
     const nextProxy = settings.proxyEnabled
-      ? (resolved.allProxy || resolved.httpsProxy || resolved.httpProxy)
+      ? resolved.allProxy || resolved.httpsProxy || resolved.httpProxy
       : '';
     const currentProxy = typeof telegramConfig.proxy === 'string' ? telegramConfig.proxy : '';
 
     if (!settings.proxyEnabled && preserveExistingWhenDisabled && currentProxy) {
-      logger.info('Skipped Telegram proxy sync because OpenClawPro proxy is disabled and preserve mode is enabled');
+      logger.info(
+        'Skipped Telegram proxy sync because OpenClaw proxy is disabled and preserve mode is enabled'
+      );
       return;
     }
 

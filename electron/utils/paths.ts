@@ -41,21 +41,21 @@ export function getOpenClawSkillsDir(): string {
 }
 
 /**
- * Get OpenClawPro config directory
+ * Get OpenClaw config directory
  */
 export function getOpenClawProConfigDir(): string {
   return join(homedir(), '.openclawpro');
 }
 
 /**
- * Get OpenClawPro logs directory
+ * Get OpenClaw logs directory
  */
 export function getLogsDir(): string {
   return join(app.getPath('userData'), 'logs');
 }
 
 /**
- * Get OpenClawPro data directory
+ * Get OpenClaw data directory
  */
 export function getDataDir(): string {
   return app.getPath('userData');

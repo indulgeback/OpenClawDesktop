@@ -105,7 +105,7 @@ export function initLogger(): void {
     logFilePath = join(logDir, `openclawpro-${timestamp}.log`);
 
     // Write a separator for new session (sync is OK — happens once at startup)
-    const sessionHeader = `\n${'='.repeat(80)}\n[${new Date().toISOString()}] === OpenClawPro Session Start (v${app.getVersion()}) ===\n${'='.repeat(80)}\n`;
+    const sessionHeader = `\n${'='.repeat(80)}\n[${new Date().toISOString()}] === OpenClaw Session Start (v${app.getVersion()}) ===\n${'='.repeat(80)}\n`;
     appendFileSync(logFilePath, sessionHeader);
   } catch (error) {
     console.error('Failed to initialize logger:', error);
@@ -130,19 +130,25 @@ export function getLogFilePath(): string | null {
 
 function formatMessage(level: string, message: string, ...args: unknown[]): string {
   const timestamp = new Date().toISOString();
-  const formattedArgs = args.length > 0 ? ' ' + args.map(arg => {
-    if (arg instanceof Error) {
-      return `${arg.message}\n${arg.stack || ''}`;
-    }
-    if (typeof arg === 'object') {
-      try {
-        return JSON.stringify(arg, null, 2);
-      } catch {
-        return String(arg);
-      }
-    }
-    return String(arg);
-  }).join(' ') : '';
+  const formattedArgs =
+    args.length > 0
+      ? ' ' +
+        args
+          .map((arg) => {
+            if (arg instanceof Error) {
+              return `${arg.message}\n${arg.stack || ''}`;
+            }
+            if (typeof arg === 'object') {
+              try {
+                return JSON.stringify(arg, null, 2);
+              } catch {
+                return String(arg);
+              }
+            }
+            return String(arg);
+          })
+          .join(' ')
+      : '';
 
   return `[${timestamp}] [${level.padEnd(5)}] ${message}${formattedArgs}`;
 }
@@ -212,14 +218,16 @@ export function error(message: string, ...args: unknown[]): void {
 // ── Log retrieval (for UI / diagnostics) ─────────────────────────
 
 export function getRecentLogs(count?: number, minLevel?: LogLevel): string[] {
-  const filtered = minLevel != null
-    ? recentLogs.filter(line => {
-      if (minLevel <= LogLevel.DEBUG) return true;
-      if (minLevel === LogLevel.INFO) return !line.includes('] [DEBUG');
-      if (minLevel === LogLevel.WARN) return line.includes('] [WARN') || line.includes('] [ERROR');
-      return line.includes('] [ERROR');
-    })
-    : recentLogs;
+  const filtered =
+    minLevel != null
+      ? recentLogs.filter((line) => {
+          if (minLevel <= LogLevel.DEBUG) return true;
+          if (minLevel === LogLevel.INFO) return !line.includes('] [DEBUG');
+          if (minLevel === LogLevel.WARN)
+            return line.includes('] [WARN') || line.includes('] [ERROR');
+          return line.includes('] [ERROR');
+        })
+      : recentLogs;
 
   return count ? filtered.slice(-count) : [...filtered];
 }
@@ -266,7 +274,9 @@ export async function readLogFile(tailLines = 200): Promise<string> {
  * List available log files.
  * Uses async I/O to avoid blocking.
  */
-export async function listLogFiles(): Promise<Array<{ name: string; path: string; size: number; modified: string }>> {
+export async function listLogFiles(): Promise<
+  Array<{ name: string; path: string; size: number; modified: string }>
+> {
   if (!logDir) return [];
   try {
     const files = await readdir(logDir);

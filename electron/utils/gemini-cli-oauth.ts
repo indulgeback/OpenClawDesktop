@@ -1,6 +1,14 @@
 import { execFile, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
 import { delimiter, dirname, join } from 'node:path';
 import { getOpenClawProConfigDir } from './paths';
@@ -126,7 +134,7 @@ export function extractGeminiCliCredentials(): { clientId: string; clientSecret:
         'dist',
         'src',
         'code_assist',
-        'oauth2.js',
+        'oauth2.js'
       ),
       join(
         geminiCliDir,
@@ -135,7 +143,7 @@ export function extractGeminiCliCredentials(): { clientId: string; clientSecret:
         'gemini-cli-core',
         'dist',
         'code_assist',
-        'oauth2.js',
+        'oauth2.js'
       ),
     ];
 
@@ -233,7 +241,7 @@ async function installViaNpm(onProgress?: (msg: string) => void): Promise<boolea
           onProgress?.('Gemini OAuth helper installed');
           resolve(true);
         }
-      },
+      }
     );
     child.stderr?.on('data', () => {
       // Suppress npm noise.
@@ -244,7 +252,9 @@ async function installViaNpm(onProgress?: (msg: string) => void): Promise<boolea
 async function installViaDirectDownload(onProgress?: (msg: string) => void): Promise<boolean> {
   try {
     onProgress?.('Downloading Gemini OAuth helper...');
-    const metaRes = await proxyAwareFetch('https://registry.npmjs.org/@google/gemini-cli-core/latest');
+    const metaRes = await proxyAwareFetch(
+      'https://registry.npmjs.org/@google/gemini-cli-core/latest'
+    );
     if (!metaRes.ok) {
       onProgress?.(`Failed to fetch Gemini package metadata: ${metaRes.status}`);
       return false;
@@ -285,13 +295,15 @@ async function installViaDirectDownload(onProgress?: (msg: string) => void): Pro
     onProgress?.('Gemini OAuth helper ready');
     return true;
   } catch (err) {
-    onProgress?.(`Direct Gemini helper download failed: ${err instanceof Error ? err.message : String(err)}`);
+    onProgress?.(
+      `Direct Gemini helper download failed: ${err instanceof Error ? err.message : String(err)}`
+    );
     return false;
   }
 }
 
 async function ensureOAuthClientConfig(
-  onProgress?: (msg: string) => void,
+  onProgress?: (msg: string) => void
 ): Promise<{ clientId: string; clientSecret?: string }> {
   const envClientId = resolveEnv(CLIENT_ID_KEYS);
   const envClientSecret = resolveEnv(CLIENT_SECRET_KEYS);
@@ -310,7 +322,8 @@ async function ensureOAuthClientConfig(
   }
 
   mkdirSync(LOCAL_GEMINI_DIR, { recursive: true });
-  const installed = await installViaNpm(onProgress) || await installViaDirectDownload(onProgress);
+  const installed =
+    (await installViaNpm(onProgress)) || (await installViaDirectDownload(onProgress));
   if (installed) {
     const installedExtracted = extractFromLocalInstall();
     if (installedExtracted) {
@@ -319,7 +332,7 @@ async function ensureOAuthClientConfig(
   }
 
   throw new Error(
-    'Unable to prepare Gemini OAuth credentials automatically. Set GEMINI_CLI_OAUTH_CLIENT_ID or try again later.',
+    'Unable to prepare Gemini OAuth credentials automatically. Set GEMINI_CLI_OAUTH_CLIENT_ID or try again later.'
   );
 }
 
@@ -389,7 +402,7 @@ async function waitForLocalCallback(params: {
           res.statusCode = 200;
           res.setHeader('Content-Type', 'text/html; charset=utf-8');
           res.end(
-            "<!doctype html><html><head><meta charset='utf-8'/></head><body><h2>Session expired</h2><p>This authorization link is from a previous attempt. Please go back to OpenClawPro and try again.</p></body></html>",
+            "<!doctype html><html><head><meta charset='utf-8'/></head><body><h2>Session expired</h2><p>This authorization link is from a previous attempt. Please go back to OpenClaw and try again.</p></body></html>"
           );
           return;
         }
@@ -397,7 +410,7 @@ async function waitForLocalCallback(params: {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.end(
-          "<!doctype html><html><head><meta charset='utf-8'/></head><body><h2>Gemini CLI OAuth complete</h2><p>You can close this window and return to OpenClawPro.</p></body></html>",
+          "<!doctype html><html><head><meta charset='utf-8'/></head><body><h2>Gemini CLI OAuth complete</h2><p>You can close this window and return to OpenClaw.</p></body></html>"
         );
 
         finish(undefined, { code, state });
@@ -431,10 +444,12 @@ async function waitForLocalCallback(params: {
     });
 
     timeout = setTimeout(() => {
-      finish(new DetailedError(
-        'OAuth login timed out. The browser did not redirect back. Check if localhost:8085 is blocked.',
-        `Waited ${params.timeoutMs / 1000}s for callback on ${hostname}:${port}`,
-      ));
+      finish(
+        new DetailedError(
+          'OAuth login timed out. The browser did not redirect back. Check if localhost:8085 is blocked.',
+          `Waited ${params.timeoutMs / 1000}s for callback on ${hostname}:${port}`
+        )
+      );
     }, params.timeoutMs);
   });
 }
@@ -456,7 +471,7 @@ async function getUserEmail(accessToken: string): Promise<string | undefined> {
 }
 
 function getDefaultTier(
-  allowedTiers?: Array<{ id?: string; isDefault?: boolean }>,
+  allowedTiers?: Array<{ id?: string; isDefault?: boolean }>
 ): { id?: string } | undefined {
   if (!allowedTiers?.length) {
     return { id: TIER_LEGACY };
@@ -478,19 +493,21 @@ function isVpcScAffected(payload: unknown): boolean {
   }
   return details.some(
     (item) =>
-      typeof item === 'object'
-      && item
-      && (item as { reason?: string }).reason === 'SECURITY_POLICY_VIOLATED',
+      typeof item === 'object' &&
+      item &&
+      (item as { reason?: string }).reason === 'SECURITY_POLICY_VIOLATED'
   );
 }
 
 async function pollOperation(
   operationName: string,
-  headers: Record<string, string>,
+  headers: Record<string, string>
 ): Promise<{ done?: boolean; response?: { cloudaicompanionProject?: { id?: string } } }> {
   for (let attempt = 0; attempt < 24; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 5000));
-    const response = await proxyAwareFetch(`${CODE_ASSIST_ENDPOINT}/v1internal/${operationName}`, { headers });
+    const response = await proxyAwareFetch(`${CODE_ASSIST_ENDPOINT}/v1internal/${operationName}`, {
+      headers,
+    });
     if (!response.ok) {
       continue;
     }
@@ -567,7 +584,7 @@ async function discoverProject(accessToken: string): Promise<string> {
   if (tierId !== TIER_FREE && !envProject) {
     throw new DetailedError(
       'Your Google account requires a Cloud project. Please create one and set GOOGLE_CLOUD_PROJECT.',
-      `tierId=${tierId}, currentTier=${JSON.stringify(data.currentTier ?? null)}, allowedTiers=${JSON.stringify(data.allowedTiers)}`,
+      `tierId=${tierId}, currentTier=${JSON.stringify(data.currentTier ?? null)}, allowedTiers=${JSON.stringify(data.allowedTiers)}`
     );
   }
 
@@ -594,7 +611,7 @@ async function discoverProject(accessToken: string): Promise<string> {
     const respText = await onboardResponse.text().catch(() => '');
     throw new DetailedError(
       'Google project provisioning failed. Please try again later.',
-      `onboardUser ${onboardResponse.status} ${onboardResponse.statusText}: ${respText}`,
+      `onboardUser ${onboardResponse.status} ${onboardResponse.statusText}: ${respText}`
     );
   }
 
@@ -618,14 +635,14 @@ async function discoverProject(accessToken: string): Promise<string> {
 
   throw new DetailedError(
     'Could not discover or provision a Google Cloud project. Set GOOGLE_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT_ID.',
-    `tierId=${tierId}, onboardResponse=${JSON.stringify(lro)}, currentTier=${JSON.stringify(data.currentTier ?? null)}`,
+    `tierId=${tierId}, onboardResponse=${JSON.stringify(lro)}, currentTier=${JSON.stringify(data.currentTier ?? null)}`
   );
 }
 
 async function exchangeCodeForTokens(
   code: string,
   verifier: string,
-  clientConfig: { clientId: string; clientSecret?: string },
+  clientConfig: { clientId: string; clientSecret?: string }
 ): Promise<GeminiCliOAuthCredentials> {
   const { clientId, clientSecret } = clientConfig;
   const body = new URLSearchParams({
@@ -674,10 +691,10 @@ async function exchangeCodeForTokens(
 }
 
 export async function loginGeminiCliOAuth(
-  ctx: GeminiCliOAuthContext,
+  ctx: GeminiCliOAuthContext
 ): Promise<GeminiCliOAuthCredentials> {
   if (ctx.isRemote) {
-    throw new Error('Remote/manual Gemini OAuth is not implemented in OpenClawPro yet.');
+    throw new Error('Remote/manual Gemini OAuth is not implemented in OpenClaw yet.');
   }
 
   await ctx.note(
@@ -686,7 +703,7 @@ export async function loginGeminiCliOAuth(
       'Sign in with your Google account for Gemini CLI access.',
       'The callback will be captured automatically on 127.0.0.1:8085.',
     ].join('\n'),
-    'Gemini CLI OAuth',
+    'Gemini CLI OAuth'
   );
 
   ctx.progress.update('Preparing Google OAuth...');
@@ -711,14 +728,14 @@ export async function loginGeminiCliOAuth(
     return await exchangeCodeForTokens(code, verifier, clientConfig);
   } catch (err) {
     if (
-      err instanceof Error
-      && (err.message.includes('EADDRINUSE')
-        || err.message.includes('port')
-        || err.message.includes('listen'))
+      err instanceof Error &&
+      (err.message.includes('EADDRINUSE') ||
+        err.message.includes('port') ||
+        err.message.includes('listen'))
     ) {
       throw new Error(
         'Port 8085 is in use by another process. Close the other application using port 8085 and try again.',
-        { cause: err },
+        { cause: err }
       );
     }
     throw err;

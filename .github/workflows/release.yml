@@ -1,4 +1,4 @@
-# OpenClawPro Release Workflow
+# OpenClaw Release Workflow
 # Builds and publishes releases for macOS, Windows, and Linux
 
 name: Release
@@ -30,7 +30,7 @@ jobs:
             platform: linux
 
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -166,10 +166,10 @@ jobs:
       # #
       # # Actual latest.yml structure (from electron-builder NSIS):
       # #   files:
-      # #     - url: OpenClawPro-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
+      # #     - url: OpenClaw-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
       # #       sha512: <base64>
       # #       size: 430775882
-      # #   path: OpenClawPro-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
+      # #   path: OpenClaw-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
       # #   sha512: <base64>
       # #   releaseDate: '...'
       # - name: Update latest.yml sha512 after code signing
@@ -252,7 +252,7 @@ jobs:
   publish:
     needs: release
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Download release artifacts only
         uses: actions/download-artifact@v4
@@ -290,42 +290,42 @@ jobs:
           make_latest: false
           generate_release_notes: true
           body: |
-            ## 🚀 OpenClawPro ${{ github.ref_name }}
-            
-            OpenClawPro - Graphical AI Assistant based on OpenClaw
-            
+            ## 🚀 OpenClaw ${{ github.ref_name }}
+
+            OpenClaw - Graphical AI Assistant based on OpenClaw
+
             ### 📦 Downloads
-            
+
             Please select the appropriate installer for your operating system and architecture:
-            
+
             #### macOS
-            - **Apple Silicon (M1/M2/M3/M4)**: `OpenClawPro-*-mac-arm64.dmg`
-            - **Intel (x64)**: `OpenClawPro-*-mac-x64.dmg`
-            
+            - **Apple Silicon (M1/M2/M3/M4)**: `OpenClaw-*-mac-arm64.dmg`
+            - **Intel (x64)**: `OpenClaw-*-mac-x64.dmg`
+
             #### Windows
-            - **Installer (x64)**: `OpenClawPro-*-win-x64.exe`
-            - **Installer (ARM64)**: `OpenClawPro-*-win-arm64.exe`
-            
+            - **Installer (x64)**: `OpenClaw-*-win-x64.exe`
+            - **Installer (ARM64)**: `OpenClaw-*-win-arm64.exe`
+
             #### Linux
-            - **AppImage (x64)**: `OpenClawPro-*-linux-x86_64.AppImage` (Universal format, recommended)
-            - **AppImage (ARM64)**: `OpenClawPro-*-linux-arm64.AppImage`
-            - **Debian/Ubuntu (x64)**: `OpenClawPro-*-linux-amd64.deb`
-            - **Debian/Ubuntu (ARM64)**: `OpenClawPro-*-linux-arm64.deb`
-            - **RPM (x64)**: `OpenClawPro-*-linux-x86_64.rpm`
-            
+            - **AppImage (x64)**: `OpenClaw-*-linux-x86_64.AppImage` (Universal format, recommended)
+            - **AppImage (ARM64)**: `OpenClaw-*-linux-arm64.AppImage`
+            - **Debian/Ubuntu (x64)**: `OpenClaw-*-linux-amd64.deb`
+            - **Debian/Ubuntu (ARM64)**: `OpenClaw-*-linux-arm64.deb`
+            - **RPM (x64)**: `OpenClaw-*-linux-x86_64.rpm`
+
             ### 📝 Release Notes
-            
+
             See the auto-generated release notes below for detailed changes.
-            
+
             ### ⚠️ Installation Notes
-            
+
             - **macOS**: On first launch, you may see "cannot verify developer". Go to System Preferences → Security & Privacy to allow the app to run
             - **Windows**: SmartScreen may block the app. Click "More info" → "Run anyway" to proceed
-            - **Linux AppImage**: First run `chmod +x OpenClawPro-*.AppImage` to add execute permission. On Ubuntu 22.04 you may also need `sudo apt install libfuse2`; on Ubuntu 24.04 use `sudo apt install libfuse2t64`
+            - **Linux AppImage**: First run `chmod +x OpenClaw-*.AppImage` to add execute permission. On Ubuntu 22.04 you may also need `sudo apt install libfuse2`; on Ubuntu 24.04 use `sudo apt install libfuse2t64`
             - **Linux .deb (Ubuntu 24.04)**: If installation fails due to missing dependencies, use `sudo apt install libgtk-3-0t64 libnotify4t64 libxss1t64` before installing
-            
+
             ---
-            
+
             💬 Found an issue? Please submit an [Issue](https://github.com/${{ github.repository }}/issues)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -424,19 +424,19 @@ jobs:
               releaseDate: $date,
               downloads: {
                 mac: {
-                  x64: ($base + "/OpenClawPro-" + $version + "-mac-x64.dmg"),
-                  arm64: ($base + "/OpenClawPro-" + $version + "-mac-arm64.dmg")
+                  x64: ($base + "/OpenClaw-" + $version + "-mac-x64.dmg"),
+                  arm64: ($base + "/OpenClaw-" + $version + "-mac-arm64.dmg")
                 },
                 win: {
-                  x64: ($base + "/OpenClawPro-" + $version + "-win-x64.exe"),
-                  arm64: ($base + "/OpenClawPro-" + $version + "-win-arm64.exe")
+                  x64: ($base + "/OpenClaw-" + $version + "-win-x64.exe"),
+                  arm64: ($base + "/OpenClaw-" + $version + "-win-arm64.exe")
                 },
                 linux: {
-                  deb_amd64: ($base + "/OpenClawPro-" + $version + "-linux-amd64.deb"),
-                  deb_arm64: ($base + "/OpenClawPro-" + $version + "-linux-arm64.deb"),
-                  appimage_x64: ($base + "/OpenClawPro-" + $version + "-linux-x86_64.AppImage"),
-                  appimage_arm64: ($base + "/OpenClawPro-" + $version + "-linux-arm64.AppImage"),
-                  rpm_x64: ($base + "/OpenClawPro-" + $version + "-linux-x86_64.rpm")
+                  deb_amd64: ($base + "/OpenClaw-" + $version + "-linux-amd64.deb"),
+                  deb_arm64: ($base + "/OpenClaw-" + $version + "-linux-arm64.deb"),
+                  appimage_x64: ($base + "/OpenClaw-" + $version + "-linux-x86_64.AppImage"),
+                  appimage_arm64: ($base + "/OpenClaw-" + $version + "-linux-arm64.AppImage"),
+                  rpm_x64: ($base + "/OpenClaw-" + $version + "-linux-x86_64.rpm")
                 }
               },
               changelog: $changelog
@@ -463,7 +463,7 @@ jobs:
 
           ossutil --version
 
-      - name: "Upload to OSS: {channel}/ (overwrite)"
+      - name: 'Upload to OSS: {channel}/ (overwrite)'
         run: |
           CHANNEL="${{ steps.version.outputs.channel }}"
 
@@ -478,7 +478,7 @@ jobs:
 
           echo "Uploaded to ${CHANNEL}/"
 
-      - name: "Upload to OSS: releases/vX.Y.Z/ (archive)"
+      - name: 'Upload to OSS: releases/vX.Y.Z/ (archive)'
         run: |
           TAG="${{ steps.version.outputs.tag }}"
 
@@ -516,7 +516,7 @@ jobs:
           fi
           echo "electron-updater expects ${YML_PREFIX}-mac.yml, ${YML_PREFIX}.yml, etc. in ${CHANNEL}/:"
           ossutil ls oss://valuecell-openclawpro/${CHANNEL}/ --short | grep "${YML_PREFIX}.*\\.yml" || echo "(none found)"
-          
+
           echo ""
           echo "All files uploaded and verified successfully!"
 

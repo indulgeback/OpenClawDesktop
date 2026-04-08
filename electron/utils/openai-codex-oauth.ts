@@ -19,7 +19,7 @@ const SUCCESS_HTML = `<!doctype html>
   <title>Authentication successful</title>
 </head>
 <body>
-  <p>Authentication successful. Return to OpenClawPro to continue.</p>
+  <p>Authentication successful. Return to OpenClaw to continue.</p>
 </body>
 </html>`;
 
@@ -42,11 +42,7 @@ interface OpenAICodexLocalServer {
 }
 
 function toBase64Url(buffer: Buffer): string {
-  return buffer
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 function createPkce(): { verifier: string; challenge: string } {
@@ -205,7 +201,7 @@ function startLocalOAuthServer(state: string): Promise<OpenAICodexLocalServer | 
 
 async function exchangeAuthorizationCode(
   code: string,
-  verifier: string,
+  verifier: string
 ): Promise<{ access: string; refresh: string; expires: number }> {
   const response = await proxyAwareFetch(TOKEN_URL, {
     method: 'POST',
@@ -224,7 +220,7 @@ async function exchangeAuthorizationCode(
     throw new Error(`OpenAI token exchange failed (${response.status}): ${text}`);
   }
 
-  const json = await response.json() as {
+  const json = (await response.json()) as {
     access_token?: string;
     refresh_token?: string;
     expires_in?: number;
@@ -243,7 +239,10 @@ async function exchangeAuthorizationCode(
 export async function loginOpenAICodexOAuth(options: {
   openUrl: (url: string) => Promise<void>;
   onProgress?: (message: string) => void;
-  onManualCodeRequired?: (payload: { authorizationUrl: string; reason: 'port_in_use' | 'callback_timeout' }) => void;
+  onManualCodeRequired?: (payload: {
+    authorizationUrl: string;
+    reason: 'port_in_use' | 'callback_timeout';
+  }) => void;
   onManualCodeInput?: () => Promise<string>;
 }): Promise<OpenAICodexOAuthCredentials> {
   const { verifier, state, url } = await createAuthorizationFlow();
@@ -254,7 +253,9 @@ export async function loginOpenAICodexOAuth(options: {
   try {
     await options.openUrl(url);
     options.onProgress?.(
-      server ? 'Waiting for OpenAI OAuth callback…' : 'Callback port unavailable, waiting for manual authorization code…',
+      server
+        ? 'Waiting for OpenAI OAuth callback…'
+        : 'Callback port unavailable, waiting for manual authorization code…'
     );
 
     let code: string | undefined;

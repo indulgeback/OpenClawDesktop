@@ -1243,7 +1243,7 @@ export function Settings() {
                   variant="link"
                   className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
                   onClick={() =>
-                    window.electron.openExternal('https://github.com/ValueCell-ai/OpenClawPro')
+                    window.electron.openExternal('https://github.com/ValueCell-ai/OpenClaw')
                   }
                 >
                   {t('about.github')}

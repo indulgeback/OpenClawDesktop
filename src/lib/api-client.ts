@@ -1,10 +1,5 @@
 import { trackUiEvent } from './telemetry';
-import {
-  AppError,
-  type AppErrorCode,
-  mapBackendErrorCode,
-  normalizeAppError,
-} from './error-model';
+import { AppError, type AppErrorCode, mapBackendErrorCode, normalizeAppError } from './error-model';
 export { AppError } from './error-model';
 
 export type TransportKind = 'ipc' | 'ws' | 'http';
@@ -122,7 +117,9 @@ type WsTransportOptions = {
   timeoutMs?: number;
   websocketFactory?: (url: string) => WebSocket;
   buildMessage?: (requestId: string, request: TransportRequest) => unknown;
-  parseMessage?: (payload: unknown) => { id?: string; ok: boolean; data?: unknown; error?: unknown } | null;
+  parseMessage?: (
+    payload: unknown
+  ) => { id?: string; ok: boolean; data?: unknown; error?: unknown } | null;
 };
 
 type GatewayWsTransportOptions = {
@@ -137,7 +134,11 @@ type GatewayControlUiResponse = {
   token?: string;
 };
 
-function normalizeGatewayRpcEnvelope(value: unknown): { success: boolean; result?: unknown; error?: string } {
+function normalizeGatewayRpcEnvelope(value: unknown): {
+  success: boolean;
+  result?: unknown;
+  error?: string;
+} {
   if (value && typeof value === 'object' && 'success' in (value as Record<string, unknown>)) {
     return value as { success: boolean; result?: unknown; error?: string };
   }
@@ -317,7 +318,10 @@ async function invokeViaIpc<T>(channel: string, args: unknown[]): Promise<T> {
     const request = toUnifiedRequest(channel, args);
 
     try {
-      const response = await window.electron.ipcRenderer.invoke('app:request', request) as UnifiedResponse;
+      const response = (await window.electron.ipcRenderer.invoke(
+        'app:request',
+        request
+      )) as UnifiedResponse;
       if (!response?.ok) {
         const message = response?.error?.message || 'Unified IPC request failed';
         if (message.includes('APP_REQUEST_UNSUPPORTED:')) {
@@ -328,7 +332,10 @@ async function invokeViaIpc<T>(channel: string, args: unknown[]): Promise<T> {
       return response.data as T;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('APP_REQUEST_UNSUPPORTED:') || message.includes('Invalid IPC channel: app:request')) {
+      if (
+        message.includes('APP_REQUEST_UNSUPPORTED:') ||
+        message.includes('Invalid IPC channel: app:request')
+      ) {
         // Fallback to legacy channel handlers.
       } else {
         throw normalizeAppError(err, { transport: 'ipc', channel, source: 'app:request' });
@@ -337,20 +344,27 @@ async function invokeViaIpc<T>(channel: string, args: unknown[]): Promise<T> {
   }
 
   try {
-    return await window.electron.ipcRenderer.invoke(channel, ...args) as T;
+    return (await window.electron.ipcRenderer.invoke(channel, ...args)) as T;
   } catch (err) {
     throw normalizeAppError(err, { transport: 'ipc', channel, source: 'legacy-ipc' });
   }
 }
 
-async function invokeViaTransport<T>(kind: TransportKind, channel: string, args: unknown[]): Promise<T> {
+async function invokeViaTransport<T>(
+  kind: TransportKind,
+  channel: string,
+  args: unknown[]
+): Promise<T> {
   if (kind === 'ipc') {
     return invokeViaIpc<T>(channel, args);
   }
 
   const invoker = customInvokers.get(kind);
   if (!invoker) {
-    throw new TransportUnsupportedError(kind, `${kind.toUpperCase()} transport invoker is not registered`);
+    throw new TransportUnsupportedError(
+      kind,
+      `${kind.toUpperCase()} transport invoker is not registered`
+    );
   }
   return invoker<T>(channel, args);
 }
@@ -372,7 +386,10 @@ export function getApiClientConfig(): ApiClientTransportConfig {
   };
 }
 
-export function registerTransportInvoker(kind: Exclude<TransportKind, 'ipc'>, invoker: TransportInvoker): void {
+export function registerTransportInvoker(
+  kind: Exclude<TransportKind, 'ipc'>,
+  invoker: TransportInvoker
+): void {
   customInvokers.set(kind, invoker);
 }
 
@@ -412,7 +429,7 @@ export function createHttpTransportInvoker(options: HttpTransportOptions): Trans
       });
       const parsed = options.parseResponse
         ? await options.parseResponse(response)
-        : await response.json() as NormalizedTransportResponse;
+        : ((await response.json()) as NormalizedTransportResponse);
 
       if (!parsed?.ok) {
         throw new Error(String(parsed?.error ?? 'HTTP transport request failed'));
@@ -429,7 +446,14 @@ export function createWsTransportInvoker(options: WsTransportOptions): Transport
   const websocketFactory = options.websocketFactory ?? ((url: string) => new WebSocket(url));
   let socket: WebSocket | null = null;
   let connectPromise: Promise<WebSocket> | null = null;
-  const pending = new Map<string, { resolve: (value: unknown) => void; reject: (reason?: unknown) => void; timer: ReturnType<typeof setTimeout> }>();
+  const pending = new Map<
+    string,
+    {
+      resolve: (value: unknown) => void;
+      reject: (reason?: unknown) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   const clearPending = (error: Error) => {
     for (const [id, item] of pending.entries()) {
@@ -541,7 +565,7 @@ export function createWsTransportInvoker(options: WsTransportOptions): Transport
 }
 
 export function createGatewayHttpTransportInvoker(
-  _endpointResolver: () => Promise<string> | string = resolveDefaultGatewayHttpBaseUrl,
+  _endpointResolver: () => Promise<string> | string = resolveDefaultGatewayHttpBaseUrl
 ): TransportInvoker {
   return async <T>(channel: string, args: unknown[]): Promise<T> => {
     if (channel !== 'gateway:rpc') {
@@ -554,9 +578,7 @@ export function createGatewayHttpTransportInvoker(
     validateGatewayRpcParams(method, params);
 
     const timeoutMs =
-      typeof timeoutOverride === 'number' && timeoutOverride > 0
-        ? timeoutOverride
-        : 15000;
+      typeof timeoutOverride === 'number' && timeoutOverride > 0 ? timeoutOverride : 15000;
 
     const response = await invokeViaIpc<{
       ok?: boolean;
@@ -566,30 +588,35 @@ export function createGatewayHttpTransportInvoker(
       status?: number;
       json?: unknown;
       text?: string;
-    }>('gateway:httpProxy', [{
-      path: '/rpc',
-      method: 'POST',
-      timeoutMs,
-      body: {
-        type: 'req',
-        method,
-        params,
+    }>('gateway:httpProxy', [
+      {
+        path: '/rpc',
+        method: 'POST',
+        timeoutMs,
+        body: {
+          type: 'req',
+          method,
+          params,
+        },
       },
-    }]);
+    ]);
 
     if (response && 'data' in response && typeof response.ok === 'boolean') {
       if (!response.ok) {
         const errObj = response.error as { message?: string } | string | undefined;
         throw new Error(
-          typeof errObj === 'string'
-            ? errObj
-            : (errObj?.message || 'Gateway HTTP proxy failed'),
+          typeof errObj === 'string' ? errObj : errObj?.message || 'Gateway HTTP proxy failed'
         );
       }
-      const proxyData = response.data as { status?: number; ok?: boolean; json?: unknown; text?: string } | undefined;
+      const proxyData = response.data as
+        | { status?: number; ok?: boolean; json?: unknown; text?: string }
+        | undefined;
       const payload = proxyData?.json as Record<string, unknown> | undefined;
       if (!payload || typeof payload !== 'object') {
-        throw new Error(proxyData?.text || `Gateway HTTP returned non-JSON (status=${proxyData?.status ?? 'unknown'})`);
+        throw new Error(
+          proxyData?.text ||
+            `Gateway HTTP returned non-JSON (status=${proxyData?.status ?? 'unknown'})`
+        );
       }
       if (payload.type === 'res') {
         if (payload.ok === false || payload.error) {
@@ -609,15 +636,15 @@ export function createGatewayHttpTransportInvoker(
     if (!response?.success) {
       const errObj = response?.error as { message?: string } | string | undefined;
       throw new Error(
-        typeof errObj === 'string'
-          ? errObj
-          : (errObj?.message || 'Gateway HTTP proxy failed'),
+        typeof errObj === 'string' ? errObj : errObj?.message || 'Gateway HTTP proxy failed'
       );
     }
 
     const payload = response?.json as Record<string, unknown> | undefined;
     if (!payload || typeof payload !== 'object') {
-      throw new Error(response?.text || `Gateway HTTP returned non-JSON (status=${response?.status ?? 'unknown'})`);
+      throw new Error(
+        response?.text || `Gateway HTTP returned non-JSON (status=${response?.status ?? 'unknown'})`
+      );
     }
 
     if (payload.type === 'res') {
@@ -637,28 +664,35 @@ export function createGatewayHttpTransportInvoker(
   };
 }
 
-export function createGatewayWsTransportInvoker(options: GatewayWsTransportOptions = {}): TransportInvoker {
+export function createGatewayWsTransportInvoker(
+  options: GatewayWsTransportOptions = {}
+): TransportInvoker {
   const timeoutMs = options.timeoutMs ?? 15000;
   const websocketFactory = options.websocketFactory ?? ((url: string) => new WebSocket(url));
   const resolveUrl = options.urlResolver ?? resolveDefaultGatewayWsUrl;
-  const resolveToken = options.tokenResolver ?? (async () => {
-    const controlUi = await invokeViaIpc<GatewayControlUiResponse>('gateway:getControlUiUrl', []);
-    if (controlUi?.success && typeof controlUi.token === 'string' && controlUi.token.trim()) {
-      return controlUi.token;
-    }
-    return await invokeViaIpc<string | null>('settings:get', [{ key: 'gatewayToken' }]);
-  });
+  const resolveToken =
+    options.tokenResolver ??
+    (async () => {
+      const controlUi = await invokeViaIpc<GatewayControlUiResponse>('gateway:getControlUiUrl', []);
+      if (controlUi?.success && typeof controlUi.token === 'string' && controlUi.token.trim()) {
+        return controlUi.token;
+      }
+      return await invokeViaIpc<string | null>('settings:get', [{ key: 'gatewayToken' }]);
+    });
 
   let socket: WebSocket | null = null;
   let connectPromise: Promise<WebSocket> | null = null;
   let handshakeDone = false;
   let connectRequestId: string | null = null;
 
-  const pending = new Map<string, {
-    resolve: (value: unknown) => void;
-    reject: (reason?: unknown) => void;
-    timer: ReturnType<typeof setTimeout>;
-  }>();
+  const pending = new Map<
+    string,
+    {
+      resolve: (value: unknown) => void;
+      reject: (reason?: unknown) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   const clearPending = (error: Error) => {
     for (const [id, item] of pending.entries()) {
@@ -674,9 +708,10 @@ export function createGatewayWsTransportInvoker(options: GatewayWsTransportOptio
     if (typeof errorValue === 'object') {
       const asRecord = errorValue as Record<string, unknown>;
       const message = typeof asRecord.message === 'string' ? asRecord.message : null;
-      const code = typeof asRecord.code === 'string' || typeof asRecord.code === 'number'
-        ? String(asRecord.code)
-        : null;
+      const code =
+        typeof asRecord.code === 'string' || typeof asRecord.code === 'number'
+          ? String(asRecord.code)
+          : null;
       if (message && code) return `${code}: ${message}`;
       if (message) return message;
       try {
@@ -694,32 +729,31 @@ export function createGatewayWsTransportInvoker(options: GatewayWsTransportOptio
     }
     const token = await Promise.resolve(resolveToken());
     connectRequestId = `connect-${Date.now()}`;
-    const auth =
-      typeof token === 'string' && token.trim().length > 0
-        ? { token }
-        : undefined;
-    socket.send(JSON.stringify({
-      type: 'req',
-      id: connectRequestId,
-      method: 'connect',
-      params: {
-        minProtocol: 3,
-        maxProtocol: 3,
-        client: {
-          id: 'openclaw-control-ui',
-          displayName: 'OpenClawPro UI',
-          version: '1.0.0',
-          platform: window.electron?.platform ?? 'unknown',
-          mode: 'webchat',
+    const auth = typeof token === 'string' && token.trim().length > 0 ? { token } : undefined;
+    socket.send(
+      JSON.stringify({
+        type: 'req',
+        id: connectRequestId,
+        method: 'connect',
+        params: {
+          minProtocol: 3,
+          maxProtocol: 3,
+          client: {
+            id: 'openclaw-control-ui',
+            displayName: 'OpenClaw UI',
+            version: '1.0.0',
+            platform: window.electron?.platform ?? 'unknown',
+            mode: 'webchat',
+          },
+          auth,
+          caps: ['tool-events'],
+          role: 'operator',
+          scopes: ['operator.admin'],
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+          locale: typeof navigator !== 'undefined' ? navigator.language : 'en',
         },
-        auth,
-        caps: ['tool-events'],
-        role: 'operator',
-        scopes: ['operator.admin'],
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-        locale: typeof navigator !== 'undefined' ? navigator.language : 'en',
-      },
-    }));
+      })
+    );
   };
 
   const ensureConnection = async (): Promise<WebSocket> => {
@@ -861,18 +895,18 @@ export function createGatewayWsTransportInvoker(options: GatewayWsTransportOptio
     validateGatewayRpcParams(method, params);
 
     const requestTimeoutMs =
-      typeof timeoutOverride === 'number' && timeoutOverride > 0
-        ? timeoutOverride
-        : timeoutMs;
+      typeof timeoutOverride === 'number' && timeoutOverride > 0 ? timeoutOverride : timeoutMs;
 
     const ws = await ensureConnection();
     const requestId = crypto.randomUUID();
-    ws.send(JSON.stringify({
-      type: 'req',
-      id: requestId,
-      method,
-      params,
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'req',
+        id: requestId,
+        method,
+        params,
+      })
+    );
 
     return await new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -1044,7 +1078,7 @@ export async function invokeIpcWithRetry<T>(
   channel: string,
   args: unknown[] = [],
   retries = 1,
-  retryable: AppErrorCode[] = ['TIMEOUT', 'NETWORK'],
+  retryable: AppErrorCode[] = ['TIMEOUT', 'NETWORK']
 ): Promise<T> {
   let lastError: unknown;
 

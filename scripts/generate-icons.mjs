@@ -12,7 +12,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 const ICONS_DIR = path.join(PROJECT_ROOT, 'resources', 'icons');
 const SVG_SOURCE = path.join(ICONS_DIR, 'icon.svg');
 
-echo`🎨 Generating OpenClawPro icons using Node.js...`;
+echo`🎨 Generating OpenClaw icons using Node.js...`;
 
 // Check if SVG source exists
 if (!fs.existsSync(SVG_SOURCE)) {
@@ -32,9 +32,7 @@ try {
     .toBuffer();
 
   // Save the main icon.png (typically 512x512 for Electron root icon)
-  await sharp(masterPngBuffer)
-    .resize(512, 512)
-    .toFile(path.join(ICONS_DIR, 'icon.png'));
+  await sharp(masterPngBuffer).resize(512, 512).toFile(path.join(ICONS_DIR, 'icon.png'));
   echo`  ✅ Created icon.png (512x512)`;
 
   // 2. Generate Windows .ico
@@ -44,7 +42,7 @@ try {
   // Defaulting to Bezier (3) for quality or Hermite (2) for speed. Let's use 2 (Hermite) as it's balanced.
   echo`🪟 Generating Windows .ico...`;
   const icoBuffer = png2icons.createICO(masterPngBuffer, png2icons.HERMITE, 0, false);
-  
+
   if (icoBuffer) {
     fs.writeFileSync(path.join(ICONS_DIR, 'icon.ico'), icoBuffer);
     echo`  ✅ Created icon.ico`;
@@ -56,7 +54,7 @@ try {
   // 3. Generate macOS .icns
   echo`🍎 Generating macOS .icns...`;
   const icnsBuffer = png2icons.createICNS(masterPngBuffer, png2icons.HERMITE, 0);
-  
+
   if (icnsBuffer) {
     fs.writeFileSync(path.join(ICONS_DIR, 'icon.icns'), icnsBuffer);
     echo`  ✅ Created icon.icns`;
@@ -68,7 +66,7 @@ try {
   echo`🐧 Generating Linux PNG icons...`;
   const linuxSizes = [16, 32, 48, 64, 128, 256, 512];
   let generatedCount = 0;
-  
+
   for (const size of linuxSizes) {
     await sharp(masterPngBuffer)
       .resize(size, size)
@@ -80,7 +78,7 @@ try {
   // 5. Generate macOS Tray Icon Template
   echo`📍 Generating macOS tray icon template...`;
   const TRAY_SVG_SOURCE = path.join(ICONS_DIR, 'tray-icon-template.svg');
-  
+
   if (fs.existsSync(TRAY_SVG_SOURCE)) {
     await sharp(TRAY_SVG_SOURCE)
       .resize(22, 22)
@@ -92,7 +90,6 @@ try {
   }
 
   echo`\n✨ Icon generation complete! Files located in: ${ICONS_DIR}`;
-
 } catch (error) {
   echo(chalk.red`\n❌ Fatal Error: ${error.message}`);
   process.exit(1);

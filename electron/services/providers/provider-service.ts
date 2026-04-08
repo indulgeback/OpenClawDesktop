@@ -1,7 +1,4 @@
-import {
-  PROVIDER_DEFINITIONS,
-  getProviderDefinition,
-} from '../../shared/providers/registry';
+import { PROVIDER_DEFINITIONS, getProviderDefinition } from '../../shared/providers/registry';
 import type {
   ProviderAccount,
   ProviderConfig,
@@ -49,7 +46,7 @@ function logLegacyProviderApiUsage(method: string, replacement: string): void {
   }
   legacyProviderApiWarned.add(method);
   logger.warn(
-    `[provider-migration] Legacy provider API "${method}" is deprecated. Migrate to "${replacement}".`,
+    `[provider-migration] Legacy provider API "${method}" is deprecated. Migrate to "${replacement}".`
   );
 }
 
@@ -62,7 +59,7 @@ export class ProviderService {
     await ensureProviderStoreMigrated();
     let accounts = await listProviderAccounts();
 
-    // Seed: when OpenClawPro store is empty but OpenClaw config has providers,
+    // Seed: when OpenClaw store is empty but OpenClaw config has providers,
     // create ProviderAccount entries so the settings panel isn't blank.
     // This covers users who configured providers via CLI or openclaw.json directly.
     if (accounts.length === 0) {
@@ -80,11 +77,13 @@ export class ProviderService {
     {
       const activeProviders = await getActiveOpenClawProviders();
       // When OpenClaw config has no providers (e.g. user deleted the file),
-      // treat ALL accounts as stale so OpenClawPro stays in sync.
+      // treat ALL accounts as stale so OpenClaw stays in sync.
       const configEmpty = activeProviders.size === 0;
 
       if (configEmpty) {
-        logger.info('[provider-sync] OpenClaw config empty — hiding all provider accounts from display');
+        logger.info(
+          '[provider-sync] OpenClaw config empty — hiding all provider accounts from display'
+        );
         return [];
       }
 
@@ -96,19 +95,24 @@ export class ProviderService {
           activeProviders.has(openClawKey);
 
         if (!isActive) {
-          logger.info(`[provider-sync] Hiding stale provider account "${account.id}" (not in OpenClaw config)`);
+          logger.info(
+            `[provider-sync] Hiding stale provider account "${account.id}" (not in OpenClaw config)`
+          );
         }
         return isActive;
       });
     }
 
-    // Import: detect providers in OpenClaw config not yet in the OpenClawPro store.
+    // Import: detect providers in OpenClaw config not yet in the OpenClaw store.
     {
       const { providers: openClawProviders, defaultModel } = await getOpenClawProvidersConfig();
       const existingIds = new Set(accounts.map((a) => a.id));
       const existingVendorIds = new Set(accounts.map((a) => a.vendorId));
       const newAccounts = ProviderService.buildAccountsFromOpenClawEntries(
-        openClawProviders, existingIds, existingVendorIds, defaultModel,
+        openClawProviders,
+        existingIds,
+        existingVendorIds,
+        defaultModel
       );
       for (const account of newAccounts) {
         await saveProviderAccount(account);
@@ -116,7 +120,7 @@ export class ProviderService {
       }
       if (newAccounts.length > 0) {
         logger.info(
-          `[provider-sync] Imported ${newAccounts.length} new provider(s) from openclaw.json: ${newAccounts.map((a) => a.id).join(', ')}`,
+          `[provider-sync] Imported ${newAccounts.length} new provider(s) from openclaw.json: ${newAccounts.map((a) => a.id).join(', ')}`
         );
       }
     }
@@ -125,14 +129,17 @@ export class ProviderService {
   }
 
   /**
-   * Seed the OpenClawPro provider store from openclaw.json when the store is empty.
+   * Seed the OpenClaw provider store from openclaw.json when the store is empty.
    * This is a one-time operation for users who configured providers externally.
    */
   private async seedAccountsFromOpenClawConfig(): Promise<ProviderAccount[]> {
     const { providers, defaultModel } = await getOpenClawProvidersConfig();
 
     const seeded = ProviderService.buildAccountsFromOpenClawEntries(
-      providers, new Set(), new Set(), defaultModel,
+      providers,
+      new Set(),
+      new Set(),
+      defaultModel
     );
 
     for (const account of seeded) {
@@ -141,7 +148,7 @@ export class ProviderService {
 
     if (seeded.length > 0) {
       logger.info(
-        `[provider-seed] Seeded ${seeded.length} provider account(s) from openclaw.json: ${seeded.map((a) => a.id).join(', ')}`,
+        `[provider-seed] Seeded ${seeded.length} provider account(s) from openclaw.json: ${seeded.map((a) => a.id).join(', ')}`
       );
     }
 
@@ -156,7 +163,7 @@ export class ProviderService {
     providers: Record<string, Record<string, unknown>>,
     existingIds: Set<string>,
     existingVendorIds: Set<string>,
-    defaultModel: string | undefined,
+    defaultModel: string | undefined
   ): ProviderAccount[] {
     const defaultModelProvider = defaultModel?.includes('/')
       ? defaultModel.split('/')[0]
@@ -176,7 +183,8 @@ export class ProviderService {
       // created "openrouter-uuid" via UI — no need to import bare "openrouter").
       if (existingVendorIds.has(vendorId)) continue;
 
-      const baseUrl = typeof entry.baseUrl === 'string' ? entry.baseUrl : definition?.providerConfig?.baseUrl;
+      const baseUrl =
+        typeof entry.baseUrl === 'string' ? entry.baseUrl : definition?.providerConfig?.baseUrl;
 
       // Infer model from the default model if it belongs to this provider
       let model: string | undefined;
@@ -188,14 +196,15 @@ export class ProviderService {
 
       const account: ProviderAccount = {
         id: key,
-        vendorId: (vendorId as ProviderAccount['vendorId'] as ProviderType),
+        vendorId: vendorId as ProviderAccount['vendorId'] as ProviderType,
         label: definition?.name ?? key.charAt(0).toUpperCase() + key.slice(1),
         authMode: definition?.defaultAuthMode ?? 'api_key',
         baseUrl,
         apiProtocol: definition?.providerConfig?.api,
-        headers: (entry.headers && typeof entry.headers === 'object'
-          ? (entry.headers as Record<string, string>)
-          : undefined),
+        headers:
+          entry.headers && typeof entry.headers === 'object'
+            ? (entry.headers as Record<string, string>)
+            : undefined,
         model,
         enabled: true,
         isDefault: false,
@@ -232,7 +241,7 @@ export class ProviderService {
   async updateAccount(
     accountId: string,
     patch: Partial<ProviderAccount>,
-    apiKey?: string,
+    apiKey?: string
   ): Promise<ProviderAccount> {
     await ensureProviderStoreMigrated();
     const existing = await getProviderAccount(accountId);

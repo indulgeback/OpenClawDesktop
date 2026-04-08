@@ -17,7 +17,12 @@ const OPENCLAWPRO_END = '<!-- openclawpro:end -->';
 // ── Helpers ──────────────────────────────────────────────────────
 
 async function fileExists(p: string): Promise<boolean> {
-  try { await access(p, constants.F_OK); return true; } catch { return false; }
+  try {
+    await access(p, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function ensureDir(dir: string): Promise<void> {
@@ -29,7 +34,7 @@ async function ensureDir(dir: string): Promise<void> {
 // ── Pure helpers (no I/O) ────────────────────────────────────────
 
 /**
- * Merge a OpenClawPro context section into an existing file's content.
+ * Merge a OpenClaw context section into an existing file's content.
  * If markers already exist, replaces the section in-place.
  * Otherwise appends it at the end.
  */
@@ -94,7 +99,7 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
 // ── Bootstrap file repair ────────────────────────────────────────
 
 /**
- * Detect and remove bootstrap .md files that contain only OpenClawPro markers
+ * Detect and remove bootstrap .md files that contain only OpenClaw markers
  * with no meaningful OpenClaw content outside them.
  */
 export async function repairOpenClawProOnlyBootstrapFiles(): Promise<void> {
@@ -126,9 +131,11 @@ export async function repairOpenClawProOnlyBootstrapFiles(): Promise<void> {
       if (before === '' && after === '') {
         try {
           await unlink(filePath);
-          logger.info(`Removed OpenClawPro-only bootstrap file for re-seeding: ${file} (${workspaceDir})`);
+          logger.info(
+            `Removed OpenClaw-only bootstrap file for re-seeding: ${file} (${workspaceDir})`
+          );
         } catch {
-          logger.warn(`Failed to remove OpenClawPro-only bootstrap file: ${filePath}`);
+          logger.warn(`Failed to remove OpenClaw-only bootstrap file: ${filePath}`);
         }
       }
     }
@@ -138,14 +145,14 @@ export async function repairOpenClawProOnlyBootstrapFiles(): Promise<void> {
 // ── Context merging ──────────────────────────────────────────────
 
 /**
- * Merge OpenClawPro context snippets into workspace bootstrap files that
+ * Merge OpenClaw context snippets into workspace bootstrap files that
  * already exist on disk.  Returns the number of target files that were
  * skipped because they don't exist yet.
  */
 async function mergeOpenClawProContextOnce(): Promise<number> {
   const contextDir = join(getResourcesDir(), 'context');
   if (!(await fileExists(contextDir))) {
-    logger.debug('OpenClawPro context directory not found, skipping context merge');
+    logger.debug('OpenClaw context directory not found, skipping context merge');
     return 0;
   }
 
@@ -167,7 +174,9 @@ async function mergeOpenClawProContextOnce(): Promise<number> {
       const targetPath = join(workspaceDir, targetName);
 
       if (!(await fileExists(targetPath))) {
-        logger.debug(`Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`);
+        logger.debug(
+          `Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`
+        );
         skipped++;
         continue;
       }
@@ -178,7 +187,7 @@ async function mergeOpenClawProContextOnce(): Promise<number> {
       const merged = mergeOpenClawProSection(existing, section);
       if (merged !== existing) {
         await writeFile(targetPath, merged, 'utf-8');
-        logger.info(`Merged OpenClawPro context into ${targetName} (${workspaceDir})`);
+        logger.info(`Merged OpenClaw context into ${targetName} (${workspaceDir})`);
       }
     }
   }
@@ -190,7 +199,7 @@ const RETRY_INTERVAL_MS = 2000;
 const MAX_RETRIES = 15;
 
 /**
- * Ensure OpenClawPro context snippets are merged into the openclaw workspace
+ * Ensure OpenClaw context snippets are merged into the openclaw workspace
  * bootstrap files.
  */
 export async function ensureOpenClawProContext(): Promise<void> {
@@ -201,11 +210,15 @@ export async function ensureOpenClawProContext(): Promise<void> {
     await new Promise((r) => setTimeout(r, RETRY_INTERVAL_MS));
     skipped = await mergeOpenClawProContextOnce();
     if (skipped === 0) {
-      logger.info(`OpenClawPro context merge completed after ${attempt} retry(ies)`);
+      logger.info(`OpenClaw context merge completed after ${attempt} retry(ies)`);
       return;
     }
-    logger.debug(`OpenClawPro context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
+    logger.debug(
+      `OpenClaw context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`
+    );
   }
 
-  logger.warn(`OpenClawPro context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`);
+  logger.warn(
+    `OpenClaw context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`
+  );
 }

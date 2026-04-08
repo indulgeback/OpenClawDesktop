@@ -114,10 +114,13 @@ describe('plugin installer diagnostics', () => {
     setPlatform('win32');
     mockHomedir.mockReturnValue('C:\\Users\\test');
 
-    const sourceDir = 'C:\\Program Files\\OpenClawPro\\resources\\openclaw-plugins\\wecom';
-    const sourceManifestSuffix = 'Program Files\\OpenClawPro\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
+    const sourceDir = 'C:\\Program Files\\OpenClaw\\resources\\openclaw-plugins\\wecom';
+    const sourceManifestSuffix =
+      'Program Files\\OpenClaw\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
 
-    mockExistsSync.mockImplementation((input: string) => String(input).includes(sourceManifestSuffix));
+    mockExistsSync.mockImplementation((input: string) =>
+      String(input).includes(sourceManifestSuffix)
+    );
     mockCpSync.mockImplementation(() => {
       const error = new Error('path too long') as NodeJS.ErrnoException;
       error.code = 'ENAMETOOLONG';
@@ -148,7 +151,7 @@ describe('plugin installer diagnostics', () => {
           expect.objectContaining({ attempt: 1, code: 'ENAMETOOLONG' }),
           expect.objectContaining({ attempt: 2, code: 'ENAMETOOLONG' }),
         ],
-      }),
+      })
     );
   });
 
@@ -156,10 +159,13 @@ describe('plugin installer diagnostics', () => {
     setPlatform('win32');
     mockHomedir.mockReturnValue('C:\\Users\\test');
 
-    const sourceDir = 'C:\\Program Files\\OpenClawPro\\resources\\openclaw-plugins\\wecom';
-    const sourceManifestSuffix = 'Program Files\\OpenClawPro\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
+    const sourceDir = 'C:\\Program Files\\OpenClaw\\resources\\openclaw-plugins\\wecom';
+    const sourceManifestSuffix =
+      'Program Files\\OpenClaw\\resources\\openclaw-plugins\\wecom\\openclaw.plugin.json';
 
-    mockExistsSync.mockImplementation((input: string) => String(input).includes(sourceManifestSuffix));
+    mockExistsSync.mockImplementation((input: string) =>
+      String(input).includes(sourceManifestSuffix)
+    );
     mockCpSync.mockImplementation(() => {
       const error = new Error('access denied') as NodeJS.ErrnoException;
       error.code = 'EPERM';
@@ -182,7 +188,7 @@ describe('plugin installer diagnostics', () => {
           expect.objectContaining({ attempt: 1, code: 'EPERM' }),
           expect.objectContaining({ attempt: 2, code: 'EPERM' }),
         ],
-      }),
+      })
     );
   });
 });

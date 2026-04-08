@@ -1,5 +1,5 @@
-# OpenClawPro CI Workflow
-# Runs on pull requests (main/develop) 
+# OpenClaw CI Workflow
+# Runs on pull requests (main/develop)
 name: Check and Build
 
 on:

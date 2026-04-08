@@ -149,7 +149,7 @@ class GatewayBrowserClient {
                 maxProtocol: 3,
                 client: {
                   id: 'gateway-client',
-                  displayName: 'OpenClawPro',
+                  displayName: 'OpenClaw',
                   version: '0.1.0',
                   platform: navigator.platform,
                   mode: 'ui',
@@ -180,9 +180,13 @@ class GatewayBrowserClient {
             clearTimeout(pending.timeout);
             this.pendingRequests.delete(message.id);
             if (message.ok === false || message.error) {
-              const errorMessage = typeof message.error === 'object' && message.error !== null
-                ? String((message.error as { message?: string }).message || JSON.stringify(message.error))
-                : String(message.error || 'Gateway request failed');
+              const errorMessage =
+                typeof message.error === 'object' && message.error !== null
+                  ? String(
+                      (message.error as { message?: string }).message ||
+                        JSON.stringify(message.error)
+                    )
+                  : String(message.error || 'Gateway request failed');
               pending.reject(new Error(errorMessage));
             } else {
               pending.resolve(message.payload);

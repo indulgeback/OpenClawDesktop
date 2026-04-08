@@ -1,18 +1,18 @@
-# OpenClawPro Application Icons
+# OpenClaw Application Icons
 
 This directory contains the application icons for all supported platforms.
 
 ## Required Files
 
-| File | Platform | Description |
-|------|----------|-------------|
-| `icon.svg` | Source | Vector source for all icons |
-| `icon.icns` | macOS | Apple Icon Image format |
-| `icon.ico` | Windows | Windows ICO format |
-| `icon.png` | All | 512x512 PNG fallback |
-| `16x16.png` - `512x512.png` | Linux | PNG set for Linux |
-| `tray-icon-template.svg` | Source | macOS tray icon template source |
-| `tray-icon-Template.png` | macOS | 22x22 status bar icon (note: "Template" suffix required) |
+| File                        | Platform | Description                                              |
+| --------------------------- | -------- | -------------------------------------------------------- |
+| `icon.svg`                  | Source   | Vector source for all icons                              |
+| `icon.icns`                 | macOS    | Apple Icon Image format                                  |
+| `icon.ico`                  | Windows  | Windows ICO format                                       |
+| `icon.png`                  | All      | 512x512 PNG fallback                                     |
+| `16x16.png` - `512x512.png` | Linux    | PNG set for Linux                                        |
+| `tray-icon-template.svg`    | Source   | macOS tray icon template source                          |
+| `tray-icon-Template.png`    | macOS    | 22x22 status bar icon (note: "Template" suffix required) |
 
 ## Generating Icons
 
@@ -29,11 +29,13 @@ chmod +x scripts/generate-icons.sh
 ### Prerequisites
 
 **macOS:**
+
 ```bash
 brew install imagemagick librsvg
 ```
 
 **Linux:**
+
 ```bash
 apt install imagemagick librsvg2-bin
 ```
@@ -47,7 +49,7 @@ If you prefer to generate icons manually:
 
 1. **macOS (.icns)**
    - Create a `.iconset` folder with properly named PNGs
-   - Run: `iconutil -c icns -o icon.icns OpenClawPro.iconset`
+   - Run: `iconutil -c icns -o icon.icns OpenClaw.iconset`
 
 2. **Windows (.ico)**
    - Use ImageMagick: `convert icon_16.png icon_32.png icon_64.png icon_128.png icon_256.png icon.ico`
@@ -58,15 +60,17 @@ If you prefer to generate icons manually:
 ## Design Guidelines
 
 ### Application Icon
+
 - **Corner Radius**: ~20% of width (200px on 1024px canvas)
 - **Foreground**: White claw symbol with "X" accent
 - **Safe Area**: Keep 10% margin from edges
 
 ### macOS Tray Icon
+
 - **Format**: Single-color (black) on transparent background
 - **Size**: 22x22 pixels (system automatically handles @2x retina)
 - **Naming**: Must end with "Template.png" for automatic template mode
-- **Design**: Simplified monochrome version of main icon (OpenClawPro logo)
+- **Design**: Simplified monochrome version of main icon (OpenClaw logo)
 - **Source**: Use `tray-icon-template.svg` as the source
 - **Important**: Must be pure black (#000000) on transparent background - no gradients or colors
 

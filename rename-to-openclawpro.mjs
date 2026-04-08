@@ -5,19 +5,39 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 
 const IGNORE_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', 'release',
-  'out', '.vscode', '.idea', 'coverage', '.gemini'
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'release',
+  'out',
+  '.vscode',
+  '.idea',
+  'coverage',
+  '.gemini',
 ]);
 
 const IGNORE_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2',
-  '.ttf', '.eot', '.mp4', '.webm', '.icns', '.zip', '.tar',
-  '.gz', '.pdf', '.lock'
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.ico',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.mp4',
+  '.webm',
+  '.icns',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.pdf',
+  '.lock',
 ]);
 
-const IGNORE_FILES = new Set([
-  'pnpm-lock.yaml', 'package-lock.json', 'yarn.lock'
-]);
+const IGNORE_FILES = new Set(['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock']);
 
 const TARGET_DIR = process.cwd();
 
@@ -47,10 +67,10 @@ function processFile(filePath) {
     const originalContent = fs.readFileSync(filePath, 'utf8');
 
     let newContent = originalContent
-      .replace(/ClawX/g, 'OpenClawPro')
-      .replace(/clawx/g, 'openclawpro')
-      .replace(/CLAWX/g, 'OPENCLAWPRO')
-      .replace(/Clawx/g, 'Openclawpro');
+      .replace(/ClawX/g, 'OpenClaw')
+      .replace(/clawx/g, 'OpenClaw')
+      .replace(/CLAWX/g, 'OpenClaw')
+      .replace(/Clawx/g, 'OpenClaw');
 
     if (newContent !== originalContent) {
       fs.writeFileSync(filePath, newContent, 'utf8');
@@ -61,15 +81,17 @@ function processFile(filePath) {
     const fileName = path.basename(filePath);
 
     let newFileName = fileName
-      .replace(/ClawX/g, 'OpenClawPro')
-      .replace(/clawx/g, 'openclawpro')
-      .replace(/CLAWX/g, 'OPENCLAWPRO')
-      .replace(/Clawx/g, 'Openclawpro');
+      .replace(/ClawX/g, 'OpenClaw')
+      .replace(/clawx/g, 'OpenClaw')
+      .replace(/CLAWX/g, 'OpenClaw')
+      .replace(/Clawx/g, 'OpenClaw');
 
     if (newFileName !== fileName) {
       const newFilePath = path.join(dirName, newFileName);
       fs.renameSync(filePath, newFilePath);
-      console.log(`Renamed: ${filePath.replace(TARGET_DIR, '')} -> ${newFilePath.replace(TARGET_DIR, '')}`);
+      console.log(
+        `Renamed: ${filePath.replace(TARGET_DIR, '')} -> ${newFilePath.replace(TARGET_DIR, '')}`
+      );
     }
   } catch (err) {
     if (err.message.includes('ENOENT') || err.message.includes('EISDIR')) return;
@@ -77,6 +99,6 @@ function processFile(filePath) {
   }
 }
 
-console.log('Starting ClawX -> OpenClawPro replacement...');
+console.log('Starting ClawX -> OpenClaw replacement...');
 processDirectory(TARGET_DIR);
 console.log('Finished.');

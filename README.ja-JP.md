@@ -1,9 +1,8 @@
-
 <p align="center">
-  <img src="src/assets/logo.svg" width="128" height="128" alt="OpenClawPro Logo" />
+  <img src="src/assets/logo.svg" width="128" height="128" alt="OpenClaw Logo" />
 </p>
 
-<h1 align="center">OpenClawPro</h1>
+<h1 align="center">OpenClaw</h1>
 
 <p align="center">
   <strong>OpenClaw AIエージェントのためのデスクトップインターフェース</strong>
@@ -25,7 +24,7 @@
   <a href="https://discord.com/invite/84Kex3GGAh" target="_blank">
   <img src="https://img.shields.io/discord/1399603591471435907?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb" alt="chat on Discord" />
   </a>
-  <img src="https://img.shields.io/github/downloads/ValueCell-ai/OpenClawPro/total?color=%23027DEB" alt="Downloads" />
+  <img src="https://img.shields.io/github/downloads/ValueCell-ai/OpenClaw/total?color=%23027DEB" alt="Downloads" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -37,13 +36,14 @@
 
 ## 概要
 
-**OpenClawPro**は、強力なAIエージェントと日常のユーザーとの間のギャップを埋めます。[OpenClaw](https://github.com/OpenClaw)をベースに構築されており、コマンドラインによるAIオーケストレーションを、アクセスしやすく美しいデスクトップ体験に変換します。ターミナルは不要です。
+**OpenClaw**は、強力なAIエージェントと日常のユーザーとの間のギャップを埋めます。[OpenClaw](https://github.com/OpenClaw)をベースに構築されており、コマンドラインによるAIオーケストレーションを、アクセスしやすく美しいデスクトップ体験に変換します。ターミナルは不要です。
 
 ワークフローの自動化、AI搭載チャネルの管理、インテリジェントなタスクのスケジューリングなど、OpenClawProはAIエージェントを効果的に活用するために必要なインターフェースを提供します。
 
 OpenClawProはベストプラクティスのモデルプロバイダーが事前設定されており、Windowsおよび多言語設定をネイティブにサポートしています。もちろん、**設定 → 詳細設定 → 開発者モード**から高度な設定を微調整することもできます。
 
 ---
+
 ## スクリーンショット
 
 <p align="center">
@@ -76,13 +76,13 @@ OpenClawProはベストプラクティスのモデルプロバイダーが事前
 
 AIエージェントの構築にコマンドラインの習得は不要であるべきです。OpenClawProはシンプルな哲学のもとに設計されました：**強力な技術には、あなたの時間を尊重するインターフェースがふさわしい。**
 
-| 課題 | OpenClawProのソリューション |
-|------|----------------------|
-| 複雑なCLIセットアップ | ワンクリックインストールとガイド付きセットアップウィザード |
-| 設定ファイル | リアルタイムバリデーション付きのビジュアル設定 |
-| プロセス管理 | ゲートウェイライフサイクルの自動管理 |
-| 複数のAIプロバイダー | 統合プロバイダー設定パネル |
-| スキル/プラグインのインストール | 組み込みのスキルマーケットプレイスと管理機能 |
+| 課題                            | OpenClawProのソリューション                                |
+| ------------------------------- | ---------------------------------------------------------- |
+| 複雑なCLIセットアップ           | ワンクリックインストールとガイド付きセットアップウィザード |
+| 設定ファイル                    | リアルタイムバリデーション付きのビジュアル設定             |
+| プロセス管理                    | ゲートウェイライフサイクルの自動管理                       |
+| 複数のAIプロバイダー            | 統合プロバイダー設定パネル                                 |
+| スキル/プラグインのインストール | 組み込みのスキルマーケットプレイスと管理機能               |
 
 ### OpenClaw内蔵
 
@@ -95,38 +95,47 @@ OpenClawProは公式の**OpenClaw**コアを直接ベースに構築されてい
 ## 機能
 
 ### 🎯 ゼロ設定バリア
+
 インストールから最初のAIインタラクションまで、すべてのセットアップを直感的なグラフィカルインターフェースで完了できます。ターミナルコマンド不要、YAMLファイル不要、環境変数の探索も不要です。
 
 ### 💬 インテリジェントチャットインターフェース
+
 モダンなチャット体験を通じてAIエージェントとコミュニケーションできます。複数の会話コンテキスト、メッセージ履歴、Markdownによるリッチコンテンツレンダリングに加え、マルチエージェント構成ではメイン入力欄の `@agent` から対象エージェントへ直接ルーティングできます。
-`@agent` で別のエージェントを選ぶと、OpenClawPro はデフォルトエージェントを経由せず、そのエージェント自身の会話コンテキストへ直接切り替えます。各エージェントのワークスペースは既定で分離されていますが、より強い実行時分離は OpenClaw の sandbox 設定に依存します。
+`@agent` で別のエージェントを選ぶと、OpenClaw はデフォルトエージェントを経由せず、そのエージェント自身の会話コンテキストへ直接切り替えます。各エージェントのワークスペースは既定で分離されていますが、より強い実行時分離は OpenClaw の sandbox 設定に依存します。
 
 ### 📡 マルチチャネル管理
+
 複数のAIチャネルを同時に設定・監視できます。各チャネルは独立して動作するため、異なるタスクに特化したエージェントを実行できます。
 現在は各チャンネルで複数アカウントを扱え、Channels ページでアカウントの Agent 紐付けやデフォルトアカウント切替を直接管理できます。
-OpenClawPro には Tencent 公式の個人 WeChat チャンネルプラグインも同梱されており、Channels ページからアプリ内 QR フローで直接 WeChat を連携できます。
+OpenClaw には Tencent 公式の個人 WeChat チャンネルプラグインも同梱されており、Channels ページからアプリ内 QR フローで直接 WeChat を連携できます。
 
 ### ⏰ Cronベースの自動化
+
 AIタスクを自動的に実行するようスケジュール設定できます。トリガーを定義し、間隔を設定することで、手動介入なしにAIエージェントを24時間稼働させることができます。
 
 ### 🧩 拡張可能なスキルシステム
+
 事前構築されたスキルでAIエージェントを拡張できます。統合スキルパネルからスキルの閲覧、インストール、管理が可能です。パッケージマネージャーは不要です。
-OpenClawPro はドキュメント処理スキル（`pdf`、`xlsx`、`docx`、`pptx`）もフル内容で同梱し、起動時に管理スキルディレクトリ（既定 `~/.openclaw/skills`）へ自動配備し、初回インストール時に既定で有効化します。追加の同梱スキル（`find-skills`、`self-improving-agent`、`tavily-search`、`brave-web-search`）も既定で有効化されますが、必要な API キーが未設定の場合は OpenClaw が実行時に設定エラーを表示します。  
+OpenClaw はドキュメント処理スキル（`pdf`、`xlsx`、`docx`、`pptx`）もフル内容で同梱し、起動時に管理スキルディレクトリ（既定 `~/.openclaw/skills`）へ自動配備し、初回インストール時に既定で有効化します。追加の同梱スキル（`find-skills`、`self-improving-agent`、`tavily-search`、`brave-web-search`）も既定で有効化されますが、必要な API キーが未設定の場合は OpenClaw が実行時に設定エラーを表示します。  
 Skills ページでは OpenClaw の複数ソース（管理ディレクトリ、workspace、追加スキルディレクトリ）から検出されたスキルを表示でき、各スキルの実際のパスを確認して実フォルダを直接開けます。
 
 主な検索スキルで必要な環境変数:
+
 - `BRAVE_SEARCH_API_KEY`: `brave-web-search` 用
 - `TAVILY_API_KEY`: `tavily-search` 用（上流ランタイムで OAuth 対応の場合あり）
 
 ### 🔐 セキュアなプロバイダー統合
+
 複数のAIプロバイダー（OpenAI、Anthropicなど）に接続でき、資格情報はシステムのネイティブキーチェーンに安全に保存されます。OpenAI は API キーとブラウザ OAuth（Codex サブスクリプション）の両方に対応しています。
 OpenAI-compatible ゲートウェイを **Custom プロバイダー** で使う場合、**設定 → AI Providers → Provider 編集** でカスタム `User-Agent` を設定でき、互換性が必要なエンドポイントで有効です。
 
 ### 🌙 アダプティブテーマ
+
 ライトモード、ダークモード、またはシステム同期テーマ。OpenClawProはあなたの好みに自動的に適応します。
 
 ### 🚀 自動起動設定
-**設定 → 通用** から **システム起動時に自動起動** を有効化すると、ログイン後に OpenClawPro が自動的に起動します。
+
+**設定 → 通用** から **システム起動時に自動起動** を有効化すると、ログイン後に OpenClaw が自動的に起動します。
 
 ---
 
@@ -142,14 +151,14 @@ OpenAI-compatible ゲートウェイを **Custom プロバイダー** で使う�
 
 #### ビルド済みリリース（推奨）
 
-[Releases](https://github.com/ValueCell-ai/OpenClawPro/releases)ページから、お使いのプラットフォーム向けの最新リリースをダウンロードしてください。
+[Releases](https://github.com/ValueCell-ai/OpenClaw/releases)ページから、お使いのプラットフォーム向けの最新リリースをダウンロードしてください。
 
 #### ソースからビルド
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/ValueCell-ai/OpenClawPro.git
-cd OpenClawPro
+git clone https://github.com/ValueCell-ai/OpenClaw.git
+cd OpenClaw
 
 # プロジェクトの初期化
 pnpm run init
@@ -157,6 +166,7 @@ pnpm run init
 # 開発モードで起動
 pnpm dev
 ```
+
 ### 初回起動
 
 OpenClawProを初めて起動すると、**セットアップウィザード**が以下の手順をガイドします：
@@ -186,6 +196,7 @@ OpenClawProには、Electron、OpenClaw Gateway、またはTelegramなどのチ�
 ```text
 プロキシサーバー: http://127.0.0.1:7890
 ```
+
 注意事項：
 
 - `host:port`のみの値はHTTPとして扱われます。
@@ -204,7 +215,7 @@ OpenClawProには、Electron、OpenClaw Gateway、またはTelegramなどのチ�
 OpenClawProは、**デュアルプロセス + Host API 統一アクセス**構成を採用しています。Renderer は単一クライアント抽象を呼び出し、プロトコル選択とライフサイクルは Main が管理します：
 
 ```┌─────────────────────────────────────────────────────────────────┐
-│                        OpenClawPro デスクトップアプリ                    │
+│                        OpenClaw デスクトップアプリ                    │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │              Electron メインプロセス                         │  │
@@ -247,6 +258,7 @@ OpenClawProは、**デュアルプロセス + Host API 統一アクセス**構�
 │  • プロバイダー抽象化レイヤー                                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
 ### 設計原則
 
 - **プロセス分離**: AIランタイムは別プロセスで動作し、重い計算処理中でもUIの応答性を確保します
@@ -258,29 +270,33 @@ OpenClawProは、**デュアルプロセス + Host API 統一アクセス**構�
 
 ### プロセスモデルと Gateway トラブルシューティング
 
-- OpenClawPro は Electron アプリのため、**1つのアプリインスタンスでも複数プロセス（main/renderer/zygote/utility）が表示される**のが正常です。
+- OpenClaw は Electron アプリのため、**1つのアプリインスタンスでも複数プロセス（main/renderer/zygote/utility）が表示される**のが正常です。
 - 単一起動保護は Electron のロックに加え、ローカルのプロセスロックファイルも併用し、デスクトップ IPC / セッションバスが不安定な環境でも重複起動を防ぎます。
 - ローリングアップグレード中に旧版/新版が混在すると、単一起動保護の挙動が非対称になる場合があります。安定運用のため、デスクトップクライアントは可能な限り同一バージョンへ揃えてください。
 - ただし OpenClaw Gateway の待受は常に**単一**であるべきです。`127.0.0.1:18789` を Listen しているプロセスは1つだけです。
 - Listen プロセスの確認例:
   - macOS/Linux: `lsof -nP -iTCP:18789 -sTCP:LISTEN`
   - Windows (PowerShell): `Get-NetTCPConnection -LocalPort 18789 -State Listen`
-- ウィンドウの閉じるボタン（`X`）は既定でトレイへ最小化する動作で、完全終了ではありません。完全終了する場合はトレイメニューの **Quit OpenClawPro** を使用してください。
+- ウィンドウの閉じるボタン（`X`）は既定でトレイへ最小化する動作で、完全終了ではありません。完全終了する場合はトレイメニューの **Quit OpenClaw** を使用してください。
 
 ---
 
 ## ユースケース
 
 ### 🤖 パーソナルAIアシスタント
+
 質問への回答、メールの下書き、ドキュメントの要約、日常タスクのサポートなど、汎用的なAIエージェントを設定できます。すべてクリーンなデスクトップインターフェースから操作できます。
 
 ### 📊 自動モニタリング
+
 ニュースフィード、価格追跡、特定イベントの監視などを行うスケジュールエージェントを設定できます。結果はお好みの通知チャネルに配信されます。
 
 ### 💻 開発者の生産性向上
+
 AI を開発ワークフローに統合できます。エージェントを使用して、コードレビュー、ドキュメント生成、反復的なコーディングタスクの自動化が可能です。
 
 ### 🔄 ワークフロー自動化
+
 複数のスキルを連鎖させて、高度な自動化パイプラインを作成できます。データの処理、コンテンツの変換、アクションのトリガーを、すべてビジュアルにオーケストレーションできます。
 
 ---
@@ -294,7 +310,7 @@ AI を開発ワークフローに統合できます。エージェントを使�
 
 ### プロジェクト構成
 
-```OpenClawPro/
+```OpenClaw/
 ├── electron/                 # Electron メインプロセス
 │   ├── api/                 # メイン側 API ルーターとハンドラー
 │   │   └── routes/          # RPC/HTTP プロキシのルートモジュール
@@ -319,6 +335,7 @@ AI を開発ワークフローに統合できます。エージェントを使�
 ├── resources/                # 静的アセット（アイコン、画像）
 └── scripts/                  # ビルド/ユーティリティスクリプト
 ```
+
 ### 利用可能なコマンド
 
 ```bash
@@ -355,18 +372,19 @@ pnpm run comms:compare
 ```
 
 CI の `comms-regression` が必須シナリオと閾値を検証します。
+
 ### 技術スタック
 
-| レイヤー | 技術 |
-|---------|------|
-| ランタイム | Electron 40以上 |
-| UIフレームワーク | React 19 + TypeScript |
-| スタイリング | Tailwind CSS + shadcn/ui |
-| ステート管理 | Zustand |
-| ビルド | Vite + electron-builder |
-| テスト | Vitest + Playwright |
-| アニメーション | Framer Motion |
-| アイコン | Lucide React |
+| レイヤー         | 技術                     |
+| ---------------- | ------------------------ |
+| ランタイム       | Electron 40以上          |
+| UIフレームワーク | React 19 + TypeScript    |
+| スタイリング     | Tailwind CSS + shadcn/ui |
+| ステート管理     | Zustand                  |
+| ビルド           | Vite + electron-builder  |
+| テスト           | Vitest + Playwright      |
+| アニメーション   | Framer Motion            |
+| アイコン         | Lucide React             |
 
 ---
 
@@ -407,15 +425,15 @@ OpenClawProは優れたオープンソースプロジェクトの上に構築さ
 
 コミュニティに参加して、他のユーザーとつながり、サポートを受け、体験を共有しましょう。
 
-| 企業微信 | Feishuグループ | Discord |
-| :---: | :---: | :---: |
+|                                     企業微信                                      |                                   Feishuグループ                                   |                                          Discord                                          |
+| :-------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------: |
 | <img src="src/assets/community/wecom-qr.png" width="150" alt="WeChat QRコード" /> | <img src="src/assets/community/feishu-qr.png" width="150" alt="Feishu QRコード" /> | <img src="src/assets/community/20260212-185822.png" width="150" alt="Discord QRコード" /> |
 
-### OpenClawPro パートナープログラム 🚀
+### OpenClaw パートナープログラム 🚀
 
-OpenClawPro パートナープログラムを開始します。特に、カスタム AI エージェントや自動化ニーズを持つより多くの顧客に OpenClawPro を紹介してくださるパートナーを募集しています。
+OpenClaw パートナープログラムを開始します。特に、カスタム AI エージェントや自動化ニーズを持つより多くの顧客に OpenClaw を紹介してくださるパートナーを募集しています。
 
-パートナーの皆さまには、見込みユーザーや案件との接点づくりを担っていただき、OpenClawPro チームは技術サポート、カスタマイズ、統合を全面的に提供します。
+パートナーの皆さまには、見込みユーザーや案件との接点づくりを担っていただき、OpenClaw チームは技術サポート、カスタマイズ、統合を全面的に提供します。
 
 AI ツールや自動化に関心のある顧客とお仕事をされている方は、ぜひご一緒できればうれしいです。
 
@@ -426,7 +444,7 @@ AI ツールや自動化に関心のある顧客とお仕事をされている�
 ## スター履歴
 
 <p align="center">
-  <img src="https://api.star-history.com/svg?repos=ValueCell-ai/OpenClawPro&type=Date" alt="スター履歴チャート" />
+  <img src="https://api.star-history.com/svg?repos=ValueCell-ai/OpenClaw&type=Date" alt="スター履歴チャート" />
 </p>
 
 ---

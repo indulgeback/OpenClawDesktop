@@ -1,8 +1,8 @@
-## OpenClawPro Tool Notes
+## OpenClaw Tool Notes
 
 ### uv (Python)
 
-- `uv` is bundled with OpenClawPro and on PATH. Do NOT use bare `python` or `pip`.
+- `uv` is bundled with OpenClaw and on PATH. Do NOT use bare `python` or `pip`.
 - Run scripts: `uv run python <script>` | Install packages: `uv pip install <package>`
 
 ### Browser

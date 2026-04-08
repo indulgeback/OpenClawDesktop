@@ -13,11 +13,7 @@ import { constants } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { listConfiguredAgentIds } from './agent-config';
-import {
-  getProviderEnvVar,
-  getProviderDefaultModel,
-  getProviderConfig,
-} from './provider-registry';
+import { getProviderEnvVar, getProviderDefaultModel, getProviderConfig } from './provider-registry';
 import {
   OPENCLAW_PROVIDER_KEY_MOONSHOT,
   isOAuthProviderType,
@@ -151,19 +147,22 @@ async function resolveInstalledFeishuPluginId(): Promise<string | null> {
 }
 
 function normalizeAgentsDefaultsCompactionMode(config: Record<string, unknown>): void {
-  const agents = (config.agents && typeof config.agents === 'object'
-    ? config.agents as Record<string, unknown>
-    : null);
+  const agents =
+    config.agents && typeof config.agents === 'object'
+      ? (config.agents as Record<string, unknown>)
+      : null;
   if (!agents) return;
 
-  const defaults = (agents.defaults && typeof agents.defaults === 'object'
-    ? agents.defaults as Record<string, unknown>
-    : null);
+  const defaults =
+    agents.defaults && typeof agents.defaults === 'object'
+      ? (agents.defaults as Record<string, unknown>)
+      : null;
   if (!defaults) return;
 
-  const compaction = (defaults.compaction && typeof defaults.compaction === 'object'
-    ? defaults.compaction as Record<string, unknown>
-    : null);
+  const compaction =
+    defaults.compaction && typeof defaults.compaction === 'object'
+      ? (defaults.compaction as Record<string, unknown>)
+      : null;
   if (!compaction) return;
 
   const mode = compaction.mode;
@@ -225,13 +224,15 @@ export async function saveOAuthTokenToOpenClaw(
 
     await writeAuthProfiles(store, id);
   }
-  console.log(`Saved OAuth token for provider "${provider}" to OpenClaw auth-profiles (agents: ${agentIds.join(', ')})`);
+  console.log(
+    `Saved OAuth token for provider "${provider}" to OpenClaw auth-profiles (agents: ${agentIds.join(', ')})`
+  );
 }
 
 /**
  * Retrieve an OAuth token from OpenClaw's auth-profiles.json.
  * Useful when the Gateway does not natively inject the Authorization header.
- * 
+ *
  * @param provider - Provider type (e.g., 'minimax-portal')
  * @param agentId - Optional single agent ID to read from, defaults to 'main'
  * @returns The OAuth token access string or null if not found
@@ -263,7 +264,9 @@ export async function saveProviderKeyToOpenClaw(
   agentId?: string
 ): Promise<void> {
   if (isOAuthProviderType(provider) && !apiKey) {
-    console.log(`Skipping auth-profiles write for OAuth provider "${provider}" (no API key provided, using OAuth)`);
+    console.log(
+      `Skipping auth-profiles write for OAuth provider "${provider}" (no API key provided, using OAuth)`
+    );
     return;
   }
   const agentIds = agentId ? [agentId] : await discoverAgentIds();
@@ -286,7 +289,9 @@ export async function saveProviderKeyToOpenClaw(
 
     await writeAuthProfiles(store, id);
   }
-  console.log(`Saved API key for provider "${provider}" to OpenClaw auth-profiles (agents: ${agentIds.join(', ')})`);
+  console.log(
+    `Saved API key for provider "${provider}" to OpenClaw auth-profiles (agents: ${agentIds.join(', ')})`
+  );
 }
 
 /**
@@ -297,7 +302,9 @@ export async function removeProviderKeyFromOpenClaw(
   agentId?: string
 ): Promise<void> {
   if (isOAuthProviderType(provider)) {
-    console.log(`Skipping auth-profiles removal for OAuth provider "${provider}" (managed by OpenClaw plugin)`);
+    console.log(
+      `Skipping auth-profiles removal for OAuth provider "${provider}" (managed by OpenClaw plugin)`
+    );
     return;
   }
   const agentIds = agentId ? [agentId] : await discoverAgentIds();
@@ -317,7 +324,9 @@ export async function removeProviderKeyFromOpenClaw(
 
     await writeAuthProfiles(store, id);
   }
-  console.log(`Removed API key for provider "${provider}" from OpenClaw auth-profiles (agents: ${agentIds.join(', ')})`);
+  console.log(
+    `Removed API key for provider "${provider}" from OpenClaw auth-profiles (agents: ${agentIds.join(', ')})`
+  );
 }
 
 /**
@@ -398,7 +407,9 @@ export async function removeProviderFromOpenClaw(provider: string): Promise<void
  * Build environment variables object with all stored API keys
  * for passing to the Gateway process
  */
-export function buildProviderEnvVars(providers: Array<{ type: string; apiKey: string }>): Record<string, string> {
+export function buildProviderEnvVars(
+  providers: Array<{ type: string; apiKey: string }>
+): Record<string, string> {
   const env: Record<string, string> = {};
   for (const { type, apiKey } of providers) {
     const envVar = getProviderEnvVar(type);
@@ -453,7 +464,9 @@ export async function setOpenClawDefaultModel(
         includeRegistryModels: true,
         mergeExistingModels: true,
       });
-      console.log(`Configured models.providers.${provider} with baseUrl=${providerCfg.baseUrl}, model=${modelId}`);
+      console.log(
+        `Configured models.providers.${provider} with baseUrl=${providerCfg.baseUrl}, model=${modelId}`
+      );
     } else {
       // Built-in provider: remove any stale models.providers entry
       const models = (config.models || {}) as Record<string, unknown>;
@@ -531,22 +544,24 @@ function mergeProviderModels(
 function upsertOpenClawProviderEntry(
   config: Record<string, unknown>,
   provider: string,
-  options: ProviderEntryBuildOptions,
+  options: ProviderEntryBuildOptions
 ): void {
   const models = (config.models || {}) as Record<string, unknown>;
   const providers = (models.providers || {}) as Record<string, unknown>;
   const removedLegacyMoonshot = removeLegacyMoonshotProviderEntry(provider, providers);
-  const existingProvider = (
+  const existingProvider =
     providers[provider] && typeof providers[provider] === 'object'
       ? (providers[provider] as Record<string, unknown>)
-      : {}
-  );
+      : {};
 
-  const existingModels = options.mergeExistingModels && Array.isArray(existingProvider.models)
-    ? (existingProvider.models as Array<Record<string, unknown>>)
-    : [];
+  const existingModels =
+    options.mergeExistingModels && Array.isArray(existingProvider.models)
+      ? (existingProvider.models as Array<Record<string, unknown>>)
+      : [];
   const registryModels = options.includeRegistryModels
-    ? ((getProviderConfig(provider)?.models ?? []).map((m) => ({ ...m })) as Array<Record<string, unknown>>)
+    ? ((getProviderConfig(provider)?.models ?? []).map((m) => ({ ...m })) as Array<
+        Record<string, unknown>
+      >)
     : [];
   const runtimeModels = (options.modelIds ?? []).map((id) => ({ id, name: id }));
 
@@ -586,15 +601,19 @@ function removeLegacyMoonshotProviderEntry(
   return false;
 }
 
-function ensureMoonshotKimiWebSearchCnBaseUrl(config: Record<string, unknown>, provider: string): void {
+function ensureMoonshotKimiWebSearchCnBaseUrl(
+  config: Record<string, unknown>,
+  provider: string
+): void {
   if (provider !== OPENCLAW_PROVIDER_KEY_MOONSHOT) return;
 
   const tools = (config.tools || {}) as Record<string, unknown>;
   const web = (tools.web || {}) as Record<string, unknown>;
   const search = (web.search || {}) as Record<string, unknown>;
-  const kimi = (search.kimi && typeof search.kimi === 'object' && !Array.isArray(search.kimi))
-    ? (search.kimi as Record<string, unknown>)
-    : {};
+  const kimi =
+    search.kimi && typeof search.kimi === 'object' && !Array.isArray(search.kimi)
+      ? (search.kimi as Record<string, unknown>)
+      : {};
 
   // Prefer env/auth-profiles for key resolution; stale inline kimi.apiKey can cause persistent 401.
   delete kimi.apiKey;
@@ -631,7 +650,7 @@ export async function syncProviderConfigToOpenClaw(
     // Ensure extension is enabled for oauth providers to prevent gateway wiping config
     if (isOpenClawOAuthPluginProviderKey(provider)) {
       const plugins = (config.plugins || {}) as Record<string, unknown>;
-      const allow = Array.isArray(plugins.allow) ? [...plugins.allow as string[]] : [];
+      const allow = Array.isArray(plugins.allow) ? [...(plugins.allow as string[])] : [];
       const pEntries = (plugins.entries || {}) as Record<string, unknown>;
       const pluginId = getOAuthPluginId(provider);
       if (!allow.includes(pluginId)) {
@@ -696,7 +715,7 @@ export async function setOpenClawDefaultModelWithOverride(
     // Ensure the extension plugin is marked as enabled in openclaw.json
     if (isOpenClawOAuthPluginProviderKey(provider)) {
       const plugins = (config.plugins || {}) as Record<string, unknown>;
-      const allow = Array.isArray(plugins.allow) ? [...plugins.allow as string[]] : [];
+      const allow = Array.isArray(plugins.allow) ? [...(plugins.allow as string[])] : [];
       const pEntries = (plugins.entries || {}) as Record<string, unknown>;
       const pluginId = getOAuthPluginId(provider);
       if (!allow.includes(pluginId)) {
@@ -763,7 +782,7 @@ export async function getActiveOpenClawProviders(): Promise<Set<string>> {
 
 /**
  * Read models.providers entries and agents.defaults.model from openclaw.json.
- * Used by OpenClawPro to seed the provider store when it's empty but providers are
+ * Used by OpenClaw to seed the provider store when it's empty but providers are
  * configured externally (e.g. via CLI or by editing openclaw.json directly).
  */
 export async function getOpenClawProvidersConfig(): Promise<{
@@ -788,8 +807,7 @@ export async function getOpenClawProvidersConfig(): Promise<{
       defaults?.model && typeof defaults.model === 'object'
         ? (defaults.model as Record<string, unknown>)
         : undefined;
-    const defaultModel =
-      typeof modelConfig?.primary === 'string' ? modelConfig.primary : undefined;
+    const defaultModel = typeof modelConfig?.primary === 'string' ? modelConfig.primary : undefined;
 
     return { providers, defaultModel };
   } catch {
@@ -798,7 +816,7 @@ export async function getOpenClawProvidersConfig(): Promise<{
 }
 
 /**
- * Write the OpenClawPro gateway token into ~/.openclaw/openclaw.json.
+ * Write the OpenClaw gateway token into ~/.openclaw/openclaw.json.
  */
 export async function syncGatewayTokenToConfig(token: string): Promise<void> {
   return withConfigLock(async () => {
@@ -820,7 +838,7 @@ export async function syncGatewayTokenToConfig(token: string): Promise<void> {
     auth.token = token;
     gateway.auth = auth;
 
-    // Packaged OpenClawPro loads the renderer from file://, so the gateway must allow
+    // Packaged OpenClaw loads the renderer from file://, so the gateway must allow
     // that origin for the chat WebSocket handshake.
     const controlUi = (
       gateway.controlUi && typeof gateway.controlUi === 'object'
@@ -828,7 +846,9 @@ export async function syncGatewayTokenToConfig(token: string): Promise<void> {
         : {}
     ) as Record<string, unknown>;
     const allowedOrigins = Array.isArray(controlUi.allowedOrigins)
-      ? (controlUi.allowedOrigins as unknown[]).filter((value): value is string => typeof value === 'string')
+      ? (controlUi.allowedOrigins as unknown[]).filter(
+          (value): value is string => typeof value === 'string'
+        )
       : [];
     if (!allowedOrigins.includes('file://')) {
       controlUi.allowedOrigins = [...allowedOrigins, 'file://'];
@@ -880,7 +900,7 @@ export async function syncBrowserConfigToOpenClaw(): Promise<void> {
  * Ensure session idle-reset is configured in ~/.openclaw/openclaw.json.
  *
  * By default OpenClaw resets the "main" session daily at 04:00 local time,
- * which means conversations disappear after roughly one day.  OpenClawPro sets
+ * which means conversations disappear after roughly one day.  OpenClaw sets
  * `session.idleMinutes` to 10 080 (7 days) so that conversations are
  * preserved for a week unless the user has explicitly configured their own
  * value.  When `idleMinutes` is set without `session.reset` /
@@ -903,9 +923,12 @@ export async function syncSessionIdleMinutesToOpenClaw(): Promise<void> {
 
     // If the user has explicit reset / resetByType / resetByChannel config,
     // they are actively managing session lifecycle — don't interfere.
-    if (session.reset !== undefined
-      || session.resetByType !== undefined
-      || session.resetByChannel !== undefined) return;
+    if (
+      session.reset !== undefined ||
+      session.resetByType !== undefined ||
+      session.resetByChannel !== undefined
+    )
+      return;
 
     session.idleMinutes = DEFAULT_IDLE_MINUTES;
     config.session = session;
@@ -981,7 +1004,7 @@ export async function updateAgentModelProvider(
  * Removes known-invalid keys that cause OpenClaw's strict Zod validation
  * to reject the entire config on startup.  Uses a conservative **blocklist**
  * approach: only strips keys that are KNOWN to be misplaced by older
- * OpenClaw/OpenClawPro versions or external tools.
+ * OpenClaw/OpenClaw versions or external tools.
  *
  * Why blocklist instead of allowlist?
  *   • Allowlist (e.g. `VALID_SKILLS_KEYS`) would strip any NEW valid keys
@@ -1026,7 +1049,9 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
         for (const p of plugins) {
           if (typeof p === 'string' && p.startsWith('/')) {
             if (p.includes('node_modules/openclaw/extensions') || !(await fileExists(p))) {
-              console.log(`[sanitize] Removing stale/bundled plugin path "${p}" from openclaw.json`);
+              console.log(
+                `[sanitize] Removing stale/bundled plugin path "${p}" from openclaw.json`
+              );
               modified = true;
             } else {
               validPlugins.push(p);
@@ -1043,7 +1068,9 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
           for (const p of pluginsObj.load) {
             if (typeof p === 'string' && p.startsWith('/')) {
               if (p.includes('node_modules/openclaw/extensions') || !(await fileExists(p))) {
-                console.log(`[sanitize] Removing stale/bundled plugin path "${p}" from openclaw.json`);
+                console.log(
+                  `[sanitize] Removing stale/bundled plugin path "${p}" from openclaw.json`
+                );
                 modified = true;
               } else {
                 validLoad.push(p);
@@ -1053,7 +1080,11 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
             }
           }
           if (modified) pluginsObj.load = validLoad;
-        } else if (pluginsObj.load && typeof pluginsObj.load === 'object' && !Array.isArray(pluginsObj.load)) {
+        } else if (
+          pluginsObj.load &&
+          typeof pluginsObj.load === 'object' &&
+          !Array.isArray(pluginsObj.load)
+        ) {
           // Handle nested shape: plugins.load.paths (array of absolute paths)
           const loadObj = pluginsObj.load as Record<string, unknown>;
           if (Array.isArray(loadObj.paths)) {
@@ -1062,7 +1093,9 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
             for (const p of loadObj.paths) {
               if (typeof p === 'string' && p.startsWith('/')) {
                 if (p.includes('node_modules/openclaw/extensions') || !(await fileExists(p))) {
-                  console.log(`[sanitize] Removing stale/bundled plugin path "${p}" from plugins.load.paths`);
+                  console.log(
+                    `[sanitize] Removing stale/bundled plugin path "${p}" from plugins.load.paths`
+                  );
                   modified = true;
                 } else {
                   validPaths.push(p);
@@ -1096,16 +1129,21 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     // ── tools.web.search.kimi ─────────────────────────────────────
     // OpenClaw web_search(kimi) prioritizes tools.web.search.kimi.apiKey over
     // environment/auth-profiles. A stale inline key can cause persistent 401s.
-    // When OpenClawPro-managed moonshot provider exists, prefer centralized key
+    // When OpenClaw-managed moonshot provider exists, prefer centralized key
     // resolution and strip the inline key.
-    const providers = ((config.models as Record<string, unknown> | undefined)?.providers as Record<string, unknown> | undefined) || {};
+    const providers =
+      ((config.models as Record<string, unknown> | undefined)?.providers as
+        | Record<string, unknown>
+        | undefined) || {};
     if (providers[OPENCLAW_PROVIDER_KEY_MOONSHOT]) {
       const tools = (config.tools as Record<string, unknown> | undefined) || {};
       const web = (tools.web as Record<string, unknown> | undefined) || {};
       const search = (web.search as Record<string, unknown> | undefined) || {};
       const kimi = (search.kimi as Record<string, unknown> | undefined) || {};
       if ('apiKey' in kimi) {
-        console.log('[sanitize] Removing stale key "tools.web.search.kimi.apiKey" from openclaw.json');
+        console.log(
+          '[sanitize] Removing stale key "tools.web.search.kimi.apiKey" from openclaw.json'
+        );
         delete kimi.apiKey;
         search.kimi = kimi;
         web.search = search;
@@ -1117,7 +1155,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
 
     // ── tools.profile & sessions.visibility ───────────────────────
     // OpenClaw 3.8+ requires tools.profile = 'full' and tools.sessions.visibility = 'all'
-    // for OpenClawPro to properly integrate with its updated tool system.
+    // for OpenClaw to properly integrate with its updated tool system.
     const toolsConfig = (config.tools as Record<string, unknown> | undefined) || {};
     let toolsModified = false;
 
@@ -1136,7 +1174,9 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (toolsModified) {
       config.tools = toolsConfig;
       modified = true;
-      console.log('[sanitize] Enforced tools.profile="full" and tools.sessions.visibility="all" for OpenClaw 3.8+');
+      console.log(
+        '[sanitize] Enforced tools.profile="full" and tools.sessions.visibility="all" for OpenClaw 3.8+'
+      );
     }
 
     // ── plugins.entries.feishu cleanup ──────────────────────────────
@@ -1146,31 +1186,39 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (typeof plugins === 'object' && !Array.isArray(plugins)) {
       const pluginsObj = plugins as Record<string, unknown>;
       const pEntries = (
-        pluginsObj.entries && typeof pluginsObj.entries === 'object' && !Array.isArray(pluginsObj.entries)
+        pluginsObj.entries &&
+        typeof pluginsObj.entries === 'object' &&
+        !Array.isArray(pluginsObj.entries)
           ? pluginsObj.entries
           : {}
       ) as Record<string, Record<string, unknown>>;
-      if (!pluginsObj.entries || typeof pluginsObj.entries !== 'object' || Array.isArray(pluginsObj.entries)) {
+      if (
+        !pluginsObj.entries ||
+        typeof pluginsObj.entries !== 'object' ||
+        Array.isArray(pluginsObj.entries)
+      ) {
         pluginsObj.entries = pEntries;
       }
 
-      const allowArr = Array.isArray(pluginsObj.allow) ? pluginsObj.allow as string[] : [];
+      const allowArr = Array.isArray(pluginsObj.allow) ? (pluginsObj.allow as string[]) : [];
       if (!Array.isArray(pluginsObj.allow)) {
         pluginsObj.allow = allowArr;
       }
 
       const installedFeishuId = await resolveInstalledFeishuPluginId();
       const configuredFeishuId =
-        FEISHU_PLUGIN_ID_CANDIDATES.find((id) => allowArr.includes(id))
-        || FEISHU_PLUGIN_ID_CANDIDATES.find((id) => Boolean(pEntries[id]));
-      const canonicalFeishuId = installedFeishuId || configuredFeishuId || FEISHU_PLUGIN_ID_CANDIDATES[0];
+        FEISHU_PLUGIN_ID_CANDIDATES.find((id) => allowArr.includes(id)) ||
+        FEISHU_PLUGIN_ID_CANDIDATES.find((id) => Boolean(pEntries[id]));
+      const canonicalFeishuId =
+        installedFeishuId || configuredFeishuId || FEISHU_PLUGIN_ID_CANDIDATES[0];
 
       const existingFeishuEntry =
-        FEISHU_PLUGIN_ID_CANDIDATES.map((id) => pEntries[id]).find(Boolean)
-        || pEntries.feishu;
+        FEISHU_PLUGIN_ID_CANDIDATES.map((id) => pEntries[id]).find(Boolean) || pEntries.feishu;
 
       const normalizedAllow = allowArr.filter(
-        (id) => id !== 'feishu' && !FEISHU_PLUGIN_ID_CANDIDATES.includes(id as typeof FEISHU_PLUGIN_ID_CANDIDATES[number]),
+        (id) =>
+          id !== 'feishu' &&
+          !FEISHU_PLUGIN_ID_CANDIDATES.includes(id as (typeof FEISHU_PLUGIN_ID_CANDIDATES)[number])
       );
       normalizedAllow.push(canonicalFeishuId);
       if (JSON.stringify(normalizedAllow) !== JSON.stringify(allowArr)) {
@@ -1225,21 +1273,26 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
       // However, there's no plugin with id='feishu', so Gateway validation
       // fails with "plugin not found: feishu".  Remove it from allow[] and
       // disable the entries.feishu entry to prevent Gateway from re-adding it.
-      const allowArr2 = Array.isArray(pluginsObj.allow) ? pluginsObj.allow as string[] : [];
-      const hasCanonicalFeishu = allowArr2.includes(canonicalFeishuId) || !!pEntries[canonicalFeishuId];
+      const allowArr2 = Array.isArray(pluginsObj.allow) ? (pluginsObj.allow as string[]) : [];
+      const hasCanonicalFeishu =
+        allowArr2.includes(canonicalFeishuId) || !!pEntries[canonicalFeishuId];
       if (hasCanonicalFeishu) {
         // Remove bare 'feishu' from plugins.allow
         const bareFeishuIdx = allowArr2.indexOf('feishu');
         if (bareFeishuIdx !== -1) {
           allowArr2.splice(bareFeishuIdx, 1);
-          console.log('[sanitize] Removed bare "feishu" from plugins.allow (feishu plugin is configured)');
+          console.log(
+            '[sanitize] Removed bare "feishu" from plugins.allow (feishu plugin is configured)'
+          );
           modified = true;
         }
         // Disable bare 'feishu' in plugins.entries so Gateway won't re-add it
         if (pEntries.feishu) {
           if (pEntries.feishu.enabled !== false) {
             pEntries.feishu.enabled = false;
-            console.log('[sanitize] Disabled bare plugins.entries.feishu (feishu plugin is configured)');
+            console.log(
+              '[sanitize] Disabled bare plugins.entries.feishu (feishu plugin is configured)'
+            );
             modified = true;
           }
         }
@@ -1249,7 +1302,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     // ── channels default-account migration ─────────────────────────
     // Most OpenClaw channel plugins read the default account's credentials
     // from the top level of `channels.<type>` (e.g. channels.feishu.appId),
-    // but OpenClawPro historically stored them only under `channels.<type>.accounts.default`.
+    // but OpenClaw historically stored them only under `channels.<type>.accounts.default`.
     // Mirror the default account credentials at the top level so plugins can
     // discover them.
     const channelsObj = config.channels as Record<string, Record<string, unknown>> | undefined;
@@ -1269,7 +1322,9 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
         }
         if (mirrored) {
           modified = true;
-          console.log(`[sanitize] Mirrored ${channelType} default account credentials to top-level channels.${channelType}`);
+          console.log(
+            `[sanitize] Mirrored ${channelType} default account credentials to top-level channels.${channelType}`
+          );
         }
       }
     }

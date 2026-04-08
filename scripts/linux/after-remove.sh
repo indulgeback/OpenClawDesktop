@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Post-removal script for OpenClawPro on Linux
+# Post-removal script for OpenClaw on Linux
 
 set -e
 
@@ -24,4 +24,4 @@ if [ -f "$APPARMOR_PROFILE_TARGET" ]; then
     rm -f "$APPARMOR_PROFILE_TARGET"
 fi
 
-echo "OpenClawPro has been removed."
+echo "OpenClaw has been removed."

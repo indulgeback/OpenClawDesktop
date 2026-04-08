@@ -84,7 +84,7 @@ describe('ProviderService.listAccounts stale-account cleanup', () => {
     vi.clearAllMocks();
     mocks.ensureProviderStoreMigrated.mockResolvedValue(undefined);
     mocks.getOpenClawProviderKeyForType.mockImplementation(
-      (type: string, id: string) => `${type}/${id}`,
+      (type: string, id: string) => `${type}/${id}`
     );
     mocks.getOpenClawProvidersConfig.mockResolvedValue({ providers: {}, defaultModel: undefined });
     service = new ProviderService();
@@ -165,7 +165,7 @@ describe('ProviderService.listAccounts stale-account cleanup', () => {
     expect(result).toEqual(accounts);
   });
 
-  it('imports new providers from OpenClaw config not yet in OpenClawPro store', async () => {
+  it('imports new providers from OpenClaw config not yet in OpenClaw store', async () => {
     const accounts = [
       makeAccount({ id: 'moonshot', vendorId: 'moonshot' as ProviderAccount['vendorId'] }),
     ];
@@ -184,13 +184,13 @@ describe('ProviderService.listAccounts stale-account cleanup', () => {
     // moonshot already exists, siliconflow should be imported
     expect(mocks.saveProviderAccount).toHaveBeenCalledTimes(1);
     expect(mocks.saveProviderAccount).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'siliconflow' }),
+      expect.objectContaining({ id: 'siliconflow' })
     );
     expect(result).toHaveLength(2);
     expect(result.map((a: ProviderAccount) => a.id)).toContain('siliconflow');
   });
 
-  it('does not import providers already in OpenClawPro store', async () => {
+  it('does not import providers already in OpenClaw store', async () => {
     const accounts = [
       makeAccount({ id: 'moonshot', vendorId: 'moonshot' as ProviderAccount['vendorId'] }),
     ];
@@ -213,7 +213,10 @@ describe('ProviderService.listAccounts stale-account cleanup', () => {
     // User added openrouter via UI → id is "openrouter-uuid", vendorId is "openrouter"
     // openclaw.json has "openrouter" entry → should NOT import because vendorId matches
     const accounts = [
-      makeAccount({ id: 'openrouter-uuid-1234', vendorId: 'openrouter' as ProviderAccount['vendorId'] }),
+      makeAccount({
+        id: 'openrouter-uuid-1234',
+        vendorId: 'openrouter' as ProviderAccount['vendorId'],
+      }),
     ];
     mocks.listProviderAccounts.mockResolvedValue(accounts);
     mocks.getActiveOpenClawProviders.mockResolvedValue(new Set(['openrouter']));

@@ -16,8 +16,15 @@ import { warmupNetworkOptimization } from '../utils/uv-env';
 import { initTelemetry } from '../utils/telemetry';
 
 import { ClawHubService } from '../gateway/clawhub';
-import { ensureOpenClawProContext, repairOpenClawProOnlyBootstrapFiles } from '../utils/openclaw-workspace';
-import { autoInstallCliIfNeeded, generateCompletionCache, installCompletionToProfile } from '../utils/openclaw-cli';
+import {
+  ensureOpenClawProContext,
+  repairOpenClawProOnlyBootstrapFiles,
+} from '../utils/openclaw-workspace';
+import {
+  autoInstallCliIfNeeded,
+  generateCompletionCache,
+  installCompletionToProfile,
+} from '../utils/openclaw-cli';
 import { isQuitting, setQuitting } from './app-state';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
@@ -35,7 +42,10 @@ import {
 import { createSignalQuitHandler } from './signal-quit';
 import { acquireProcessInstanceFileLock } from './process-instance-lock';
 import { getSetting } from '../utils/store';
-import { ensureBuiltinSkillsInstalled, ensurePreinstalledSkillsInstalled } from '../utils/skill-config';
+import {
+  ensureBuiltinSkillsInstalled,
+  ensurePreinstalledSkillsInstalled,
+} from '../utils/skill-config';
 import { ensureAllBundledPluginsInstalled } from '../utils/plugin-install';
 import { startHostApiServer } from '../api/server';
 import { HostEventBus } from '../api/event-bus';
@@ -77,7 +87,9 @@ if (process.platform === 'linux') {
 // The losing process must exit immediately so it never reaches Gateway startup.
 const gotElectronLock = app.requestSingleInstanceLock();
 if (!gotElectronLock) {
-  console.info('[OpenClawPro] Another instance already holds the single-instance lock; exiting duplicate process');
+  console.info(
+    '[OpenClaw] Another instance already holds the single-instance lock; exiting duplicate process'
+  );
   app.exit(0);
 }
 let releaseProcessInstanceFileLock: () => void = () => {};
@@ -97,12 +109,15 @@ if (gotElectronLock) {
           ? 'unknown lock format/content'
           : 'unknown owner';
       console.info(
-        `[OpenClawPro] Another instance already holds process lock (${fileLock.lockPath}, ${ownerDescriptor}); exiting duplicate process`,
+        `[OpenClaw] Another instance already holds process lock (${fileLock.lockPath}, ${ownerDescriptor}); exiting duplicate process`
       );
       app.exit(0);
     }
   } catch (error) {
-    console.warn('[OpenClawPro] Failed to acquire process instance file lock; continuing with Electron single-instance lock only', error);
+    console.warn(
+      '[OpenClaw] Failed to acquire process instance file lock; continuing with Electron single-instance lock only',
+      error
+    );
   }
 }
 const gotTheLock = gotElectronLock && gotFileLock;
@@ -136,9 +151,7 @@ function getAppIcon(): Electron.NativeImage | undefined {
 
   const iconsDir = getIconsDir();
   const iconPath =
-    process.platform === 'win32'
-      ? join(iconsDir, 'icon.ico')
-      : join(iconsDir, 'icon.png');
+    process.platform === 'win32' ? join(iconsDir, 'icon.ico') : join(iconsDir, 'icon.png');
   const icon = nativeImage.createFromPath(iconPath);
   return icon.isEmpty() ? undefined : icon;
 }
@@ -249,7 +262,7 @@ function createMainWindow(): BrowserWindow {
 async function initialize(): Promise<void> {
   // Initialize logger first
   logger.init();
-  logger.info('=== OpenClawPro Application Starting ===');
+  logger.info('=== OpenClaw Application Starting ===');
   logger.debug(
     `Runtime: platform=${process.platform}/${process.arch}, electron=${process.versions.electron}, node=${process.versions.node}, packaged=${app.isPackaged}, pid=${process.pid}, ppid=${process.ppid}`
   );
@@ -283,17 +296,17 @@ async function initialize(): Promise<void> {
       delete headers['X-Frame-Options'];
       delete headers['x-frame-options'];
       if (headers['Content-Security-Policy']) {
-        headers['Content-Security-Policy'] = headers['Content-Security-Policy'].map(
-          (csp) => csp.replace(/frame-ancestors\s+'none'/g, "frame-ancestors 'self' *")
+        headers['Content-Security-Policy'] = headers['Content-Security-Policy'].map((csp) =>
+          csp.replace(/frame-ancestors\s+'none'/g, "frame-ancestors 'self' *")
         );
       }
       if (headers['content-security-policy']) {
-        headers['content-security-policy'] = headers['content-security-policy'].map(
-          (csp) => csp.replace(/frame-ancestors\s+'none'/g, "frame-ancestors 'self' *")
+        headers['content-security-policy'] = headers['content-security-policy'].map((csp) =>
+          csp.replace(/frame-ancestors\s+'none'/g, "frame-ancestors 'self' *")
         );
       }
       callback({ responseHeaders: headers });
-    },
+    }
   );
 
   // Register IPC handlers
@@ -312,7 +325,7 @@ async function initialize(): Promise<void> {
   // Note: Auto-check for updates is driven by the renderer (update store init)
   // so it respects the user's "Auto-check for updates" setting.
 
-  // Repair any bootstrap files that only contain OpenClawPro markers (no OpenClaw
+  // Repair any bootstrap files that only contain OpenClaw markers (no OpenClaw
   // template content). This fixes a race condition where ensureOpenClawProContext()
   // previously created the file before the gateway could seed the full template.
   void repairOpenClawProOnlyBootstrapFiles().catch((error) => {
@@ -344,7 +357,7 @@ async function initialize(): Promise<void> {
     hostEventBus.emit('gateway:status', status);
     if (status.state === 'running') {
       void ensureOpenClawProContext().catch((error) => {
-        logger.warn('Failed to re-merge OpenClawPro context after gateway reconnect:', error);
+        logger.warn('Failed to re-merge OpenClaw context after gateway reconnect:', error);
       });
     }
   });
@@ -429,22 +442,24 @@ async function initialize(): Promise<void> {
     logger.info('Gateway auto-start disabled in settings');
   }
 
-  // Merge OpenClawPro context snippets into the workspace bootstrap files.
+  // Merge OpenClaw context snippets into the workspace bootstrap files.
   // The gateway seeds workspace files asynchronously after its HTTP server
   // is ready, so ensureOpenClawProContext will retry until the target files appear.
   void ensureOpenClawProContext().catch((error) => {
-    logger.warn('Failed to merge OpenClawPro context into workspace:', error);
+    logger.warn('Failed to merge OpenClaw context into workspace:', error);
   });
 
   // Auto-install openclaw CLI and shell completions (non-blocking).
   void autoInstallCliIfNeeded((installedPath) => {
     mainWindow?.webContents.send('openclaw:cli-installed', installedPath);
-  }).then(() => {
-    generateCompletionCache();
-    installCompletionToProfile();
-  }).catch((error) => {
-    logger.warn('CLI auto-install failed:', error);
-  });
+  })
+    .then(() => {
+      generateCompletionCache();
+      installCompletionToProfile();
+    })
+    .catch((error) => {
+      logger.warn('CLI auto-install failed:', error);
+    });
 }
 
 if (gotTheLock) {
@@ -474,11 +489,11 @@ if (gotTheLock) {
 
   // When a second instance is launched, focus the existing window instead.
   app.on('second-instance', () => {
-    logger.info('Second OpenClawPro instance detected; redirecting to the existing window');
+    logger.info('Second OpenClaw instance detected; redirecting to the existing window');
 
     const focusRequest = requestSecondInstanceFocus(
       mainWindowFocusState,
-      Boolean(mainWindow && !mainWindow.isDestroyed()),
+      Boolean(mainWindow && !mainWindow.isDestroyed())
     );
 
     if (focusRequest === 'focus-now') {
@@ -486,7 +501,9 @@ if (gotTheLock) {
       return;
     }
 
-    logger.debug('Main window is not ready yet; deferring second-instance focus until ready-to-show');
+    logger.debug(
+      'Main window is not ready yet; deferring second-instance focus until ready-to-show'
+    );
   });
 
   // Application lifecycle
@@ -523,7 +540,9 @@ if (gotTheLock) {
     event.preventDefault();
 
     if (action === 'cleanup-in-progress') {
-      logger.debug('Quit requested while cleanup already in progress; waiting for shutdown task to finish');
+      logger.debug(
+        'Quit requested while cleanup already in progress; waiting for shutdown task to finish'
+      );
       return;
     }
 
@@ -537,20 +556,25 @@ if (gotTheLock) {
       setTimeout(() => resolve('timeout'), 5000);
     });
 
-    void Promise.race([stopPromise.then(() => 'stopped' as const), timeoutPromise]).then((result) => {
-      if (result === 'timeout') {
-        logger.warn('Gateway shutdown timed out during app quit; proceeding with forced quit');
-        void gatewayManager.forceTerminateOwnedProcessForQuit().then((terminated) => {
-          if (terminated) {
-            logger.warn('Forced gateway process termination completed after quit timeout');
-          }
-        }).catch((err) => {
-          logger.warn('Forced gateway termination failed after quit timeout:', err);
-        });
+    void Promise.race([stopPromise.then(() => 'stopped' as const), timeoutPromise]).then(
+      (result) => {
+        if (result === 'timeout') {
+          logger.warn('Gateway shutdown timed out during app quit; proceeding with forced quit');
+          void gatewayManager
+            .forceTerminateOwnedProcessForQuit()
+            .then((terminated) => {
+              if (terminated) {
+                logger.warn('Forced gateway process termination completed after quit timeout');
+              }
+            })
+            .catch((err) => {
+              logger.warn('Forced gateway termination failed after quit timeout:', err);
+            });
+        }
+        markQuitCleanupCompleted(quitLifecycleState);
+        app.quit();
       }
-      markQuitCleanupCompleted(quitLifecycleState);
-      app.quit();
-    });
+    );
   });
 
   // Best-effort Gateway cleanup on unexpected crashes.
@@ -559,7 +583,9 @@ if (gotTheLock) {
   const emergencyGatewayCleanup = (reason: string, error: unknown): void => {
     logger.error(`${reason}:`, error);
     try {
-      void gatewayManager?.stop().catch(() => { /* ignore */ });
+      void gatewayManager?.stop().catch(() => {
+        /* ignore */
+      });
     } catch {
       // ignore — stop() may not be callable if state is corrupted
     }

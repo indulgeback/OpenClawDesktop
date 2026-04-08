@@ -4,16 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const originalPlatform = process.platform;
 
-const {
-  testHome,
-  electronAppMock,
-  setLoginItemSettingsMock,
-} = vi.hoisted(() => {
+const { testHome, electronAppMock, setLoginItemSettingsMock } = vi.hoisted(() => {
   const suffix = Math.random().toString(36).slice(2);
   const setLoginItemSettingsMock = vi.fn();
   const electronAppMock = {
     isPackaged: true,
-    getPath: (name: string) => (name === 'home' ? `/tmp/openclawpro-launch-startup-${suffix}` : '/tmp'),
+    getPath: (name: string) =>
+      name === 'home' ? `/tmp/openclawpro-launch-startup-${suffix}` : '/tmp',
     setLoginItemSettings: setLoginItemSettingsMock,
   };
 
@@ -75,7 +72,7 @@ describe('launch-at-startup integration', () => {
 
     const content = await readFile(autostartPath, 'utf8');
     expect(content).toContain('[Desktop Entry]');
-    expect(content).toContain('Name=OpenClawPro');
+    expect(content).toContain('Name=OpenClaw');
     expect(content).toContain('Exec=');
 
     await applyLaunchAtStartupSetting(false);

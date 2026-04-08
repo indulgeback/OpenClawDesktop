@@ -29,7 +29,7 @@ class BrowserOAuthManager extends EventEmitter {
 
   async startFlow(
     provider: BrowserOAuthProviderType,
-    options?: { accountId?: string; label?: string },
+    options?: { accountId?: string; label?: string }
   ): Promise<boolean> {
     if (this.active) {
       await this.stopFlow();
@@ -53,55 +53,59 @@ class BrowserOAuthManager extends EventEmitter {
 
   private async executeFlow(provider: BrowserOAuthProviderType): Promise<void> {
     try {
-      const token = provider === 'google'
-        ? await loginGeminiCliOAuth({
-          isRemote: false,
-          openUrl: async (url) => {
-            await shell.openExternal(url);
-          },
-          log: (message) => logger.info(`[BrowserOAuth] ${message}`),
-          note: async (message, title) => {
-            logger.info(`[BrowserOAuth] ${title || 'OAuth note'}: ${message}`);
-          },
-          prompt: async () => {
-            throw new Error('Manual browser OAuth fallback is not implemented in OpenClawPro yet.');
-          },
-          progress: {
-            update: (message) => logger.info(`[BrowserOAuth] ${message}`),
-            stop: (message) => {
-              if (message) {
-                logger.info(`[BrowserOAuth] ${message}`);
-              }
-            },
-          },
-        })
-        : await loginOpenAICodexOAuth({
-          openUrl: async (url) => {
-            await shell.openExternal(url);
-          },
-          onProgress: (message) => logger.info(`[BrowserOAuth] ${message}`),
-          onManualCodeRequired: ({ authorizationUrl, reason }) => {
-            const message = reason === 'port_in_use'
-              ? 'OpenAI OAuth callback port 1455 is in use. Complete sign-in, then paste the final callback URL or code.'
-              : 'OpenAI OAuth callback timed out. Paste the final callback URL or code to continue.';
-            const payload = {
-              provider,
-              mode: 'manual' as const,
-              authorizationUrl,
-              message,
-            };
-            this.emit('oauth:code', payload);
-            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-              this.mainWindow.webContents.send('oauth:code', payload);
-            }
-          },
-          onManualCodeInput: async () => {
-            return await new Promise<string>((resolve, reject) => {
-              this.pendingManualCodeResolve = resolve;
-              this.pendingManualCodeReject = reject;
+      const token =
+        provider === 'google'
+          ? await loginGeminiCliOAuth({
+              isRemote: false,
+              openUrl: async (url) => {
+                await shell.openExternal(url);
+              },
+              log: (message) => logger.info(`[BrowserOAuth] ${message}`),
+              note: async (message, title) => {
+                logger.info(`[BrowserOAuth] ${title || 'OAuth note'}: ${message}`);
+              },
+              prompt: async () => {
+                throw new Error(
+                  'Manual browser OAuth fallback is not implemented in OpenClaw yet.'
+                );
+              },
+              progress: {
+                update: (message) => logger.info(`[BrowserOAuth] ${message}`),
+                stop: (message) => {
+                  if (message) {
+                    logger.info(`[BrowserOAuth] ${message}`);
+                  }
+                },
+              },
+            })
+          : await loginOpenAICodexOAuth({
+              openUrl: async (url) => {
+                await shell.openExternal(url);
+              },
+              onProgress: (message) => logger.info(`[BrowserOAuth] ${message}`),
+              onManualCodeRequired: ({ authorizationUrl, reason }) => {
+                const message =
+                  reason === 'port_in_use'
+                    ? 'OpenAI OAuth callback port 1455 is in use. Complete sign-in, then paste the final callback URL or code.'
+                    : 'OpenAI OAuth callback timed out. Paste the final callback URL or code to continue.';
+                const payload = {
+                  provider,
+                  mode: 'manual' as const,
+                  authorizationUrl,
+                  message,
+                };
+                this.emit('oauth:code', payload);
+                if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                  this.mainWindow.webContents.send('oauth:code', payload);
+                }
+              },
+              onManualCodeInput: async () => {
+                return await new Promise<string>((resolve, reject) => {
+                  this.pendingManualCodeResolve = resolve;
+                  this.pendingManualCodeReject = reject;
+                });
+              },
             });
-          },
-        });
 
       await this.onSuccess(provider, token);
     } catch (error) {
@@ -145,7 +149,7 @@ class BrowserOAuthManager extends EventEmitter {
 
   private async onSuccess(
     providerType: BrowserOAuthProviderType,
-    token: GeminiCliOAuthCredentials | OpenAICodexOAuthCredentials,
+    token: GeminiCliOAuthCredentials | OpenAICodexOAuthCredentials
   ) {
     const accountId = this.activeAccountId || providerType;
     const accountLabel = this.activeLabel;
@@ -163,10 +167,14 @@ class BrowserOAuthManager extends EventEmitter {
     const runtimeProviderId = isGoogle ? GOOGLE_RUNTIME_PROVIDER_ID : OPENAI_RUNTIME_PROVIDER_ID;
     const defaultModel = isGoogle ? GOOGLE_OAUTH_DEFAULT_MODEL : OPENAI_OAUTH_DEFAULT_MODEL;
     const accountLabelDefault = isGoogle ? 'Google Gemini' : 'OpenAI Codex';
-    const oauthTokenEmail = 'email' in token && typeof token.email === 'string' ? token.email : undefined;
-    const oauthTokenSubject = 'projectId' in token && typeof token.projectId === 'string'
-      ? token.projectId
-      : ('accountId' in token && typeof token.accountId === 'string' ? token.accountId : undefined);
+    const oauthTokenEmail =
+      'email' in token && typeof token.email === 'string' ? token.email : undefined;
+    const oauthTokenSubject =
+      'projectId' in token && typeof token.projectId === 'string'
+        ? token.projectId
+        : 'accountId' in token && typeof token.accountId === 'string'
+          ? token.accountId
+          : undefined;
 
     const normalizedExistingModel = (() => {
       const value = existing?.model?.trim();
