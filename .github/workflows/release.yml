@@ -1,4 +1,4 @@
-# OpenClaw Desktop Release Workflow
+# OpenClawDesktop Release Workflow
 # Builds and publishes releases for macOS, Windows, and Linux
 
 name: Release
@@ -183,10 +183,10 @@ jobs:
       #
       # Actual latest.yml structure (from electron-builder NSIS):
       #   files:
-      #     - url: OpenClaw Desktop-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
+      #     - url: OpenClawDesktop-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
       #       sha512: <base64>
       #       size: 430775882
-      #   path: OpenClaw Desktop-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
+      #   path: OpenClawDesktop-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
       #   sha512: <base64>
       #   releaseDate: '...'
       # - name: Update latest.yml sha512 after code signing
@@ -307,28 +307,28 @@ jobs:
           make_latest: false
           generate_release_notes: true
           body: |
-            ## 🚀 OpenClaw Desktop ${{ github.ref_name }}
+            ## 🚀 OpenClawDesktop ${{ github.ref_name }}
 
-            OpenClaw Desktop - Graphical AI Assistant based on OpenClaw
+            OpenClawDesktop - Graphical AI Assistant based on OpenClaw
 
             ### 📦 Downloads
 
             Please select the appropriate installer for your operating system and architecture:
 
             #### macOS
-            - **Apple Silicon (M1/M2/M3/M4)**: `OpenClaw Desktop-*-mac-arm64.dmg`
-            - **Intel (x64)**: `OpenClaw Desktop-*-mac-x64.dmg`
+            - **Apple Silicon (M1/M2/M3/M4)**: `OpenClawDesktop-*-mac-arm64.dmg`
+            - **Intel (x64)**: `OpenClawDesktop-*-mac-x64.dmg`
 
             #### Windows
-            - **Installer (x64)**: `OpenClaw Desktop-*-win-x64.exe`
-            - **Installer (ARM64)**: `OpenClaw Desktop-*-win-arm64.exe`
+            - **Installer (x64)**: `OpenClawDesktop-*-win-x64.exe`
+            - **Installer (ARM64)**: `OpenClawDesktop-*-win-arm64.exe`
 
             #### Linux
-            - **AppImage (x64)**: `OpenClaw Desktop-*-linux-x86_64.AppImage` (Universal format, recommended)
-            - **AppImage (ARM64)**: `OpenClaw Desktop-*-linux-arm64.AppImage`
-            - **Debian/Ubuntu (x64)**: `OpenClaw Desktop-*-linux-amd64.deb`
-            - **Debian/Ubuntu (ARM64)**: `OpenClaw Desktop-*-linux-arm64.deb`
-            - **RPM (x64)**: `OpenClaw Desktop-*-linux-x86_64.rpm`
+            - **AppImage (x64)**: `OpenClawDesktop-*-linux-x86_64.AppImage` (Universal format, recommended)
+            - **AppImage (ARM64)**: `OpenClawDesktop-*-linux-arm64.AppImage`
+            - **Debian/Ubuntu (x64)**: `OpenClawDesktop-*-linux-amd64.deb`
+            - **Debian/Ubuntu (ARM64)**: `OpenClawDesktop-*-linux-arm64.deb`
+            - **RPM (x64)**: `OpenClawDesktop-*-linux-x86_64.rpm`
 
             ### 📝 Release Notes
 
@@ -338,7 +338,7 @@ jobs:
 
             - **macOS**: On first launch, you may see "cannot verify developer". Go to System Preferences → Security & Privacy to allow the app to run
             - **Windows**: SmartScreen may block the app. Click "More info" → "Run anyway" to proceed
-            - **Linux AppImage**: First run `chmod +x OpenClaw Desktop-*.AppImage` to add execute permission. On Ubuntu 22.04 you may also need `sudo apt install libfuse2`; on Ubuntu 24.04 use `sudo apt install libfuse2t64`
+            - **Linux AppImage**: First run `chmod +x OpenClawDesktop-*.AppImage` to add execute permission. On Ubuntu 22.04 you may also need `sudo apt install libfuse2`; on Ubuntu 24.04 use `sudo apt install libfuse2t64`
             - **Linux .deb (Ubuntu 24.04)**: If installation fails due to missing dependencies, use `sudo apt install libgtk-3-0t64 libnotify4t64 libxss1t64` before installing
 
             ---
@@ -437,19 +437,19 @@ jobs:
               releaseDate: $date,
               downloads: {
                 mac: {
-                  x64: ($base + "/OpenClaw Desktop-" + $version + "-mac-x64.dmg"),
-                  arm64: ($base + "/OpenClaw Desktop-" + $version + "-mac-arm64.dmg")
+                  x64: ($base + "/OpenClawDesktop-" + $version + "-mac-x64.dmg"),
+                  arm64: ($base + "/OpenClawDesktop-" + $version + "-mac-arm64.dmg")
                 },
                 win: {
-                  x64: ($base + "/OpenClaw Desktop-" + $version + "-win-x64.exe"),
-                  arm64: ($base + "/OpenClaw Desktop-" + $version + "-win-arm64.exe")
+                  x64: ($base + "/OpenClawDesktop-" + $version + "-win-x64.exe"),
+                  arm64: ($base + "/OpenClawDesktop-" + $version + "-win-arm64.exe")
                 },
                 linux: {
-                  deb_amd64: ($base + "/OpenClaw Desktop-" + $version + "-linux-amd64.deb"),
-                  deb_arm64: ($base + "/OpenClaw Desktop-" + $version + "-linux-arm64.deb"),
-                  appimage_x64: ($base + "/OpenClaw Desktop-" + $version + "-linux-x86_64.AppImage"),
-                  appimage_arm64: ($base + "/OpenClaw Desktop-" + $version + "-linux-arm64.AppImage"),
-                  rpm_x64: ($base + "/OpenClaw Desktop-" + $version + "-linux-x86_64.rpm")
+                  deb_amd64: ($base + "/OpenClawDesktop-" + $version + "-linux-amd64.deb"),
+                  deb_arm64: ($base + "/OpenClawDesktop-" + $version + "-linux-arm64.deb"),
+                  appimage_x64: ($base + "/OpenClawDesktop-" + $version + "-linux-x86_64.AppImage"),
+                  appimage_arm64: ($base + "/OpenClawDesktop-" + $version + "-linux-arm64.AppImage"),
+                  rpm_x64: ($base + "/OpenClawDesktop-" + $version + "-linux-x86_64.rpm")
                 }
               },
               changelog: $changelog
