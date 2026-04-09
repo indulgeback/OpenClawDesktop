@@ -31,7 +31,6 @@ import {
 } from '@/stores/providers';
 import {
   PROVIDER_TYPE_INFO,
-  getProviderDocsUrl,
   type ProviderType,
   getProviderIconUrl,
   resolveProviderApiKeyForSave,
@@ -353,7 +352,7 @@ function ProviderCard({
   onValidateKey,
   devModeUnlocked,
 }: ProviderCardProps) {
-  const { t, i18n } = useTranslation('settings');
+  const { t } = useTranslation('settings');
   const { account, vendor, status } = item;
   const [newKey, setNewKey] = useState('');
   const [baseUrl, setBaseUrl] = useState(account.baseUrl || '');
@@ -373,7 +372,6 @@ function ProviderCard({
   const [arkMode, setArkMode] = useState<ArkMode>('apikey');
 
   const typeInfo = PROVIDER_TYPE_INFO.find((t) => t.id === account.vendorId);
-  const providerDocsUrl = getProviderDocsUrl(typeInfo, i18n.language);
   const showModelIdField = shouldShowProviderModelId(typeInfo, devModeUnlocked);
   const codePlanPreset = typeInfo?.codePlanPresetBaseUrl && typeInfo?.codePlanPresetModelId
     ? {
@@ -381,9 +379,6 @@ function ProviderCard({
       modelId: typeInfo.codePlanPresetModelId,
     }
     : null;
-  const effectiveDocsUrl = account.vendorId === 'ark' && arkMode === 'codeplan'
-    ? (typeInfo?.codePlanDocsUrl || providerDocsUrl)
-    : providerDocsUrl;
   const canEditModelConfig = Boolean(typeInfo?.showBaseUrl || showModelIdField);
   const showUserAgentField = shouldShowUserAgentField(account);
 
@@ -603,19 +598,6 @@ function ProviderCard({
 
       {isEditing && (
         <div className="space-y-6 mt-4 pt-4 border-t border-black/5 dark:border-white/5">
-          {effectiveDocsUrl && (
-            <div className="flex justify-end -mt-2 mb-2">
-              <a
-                href={effectiveDocsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[12px] text-blue-500 hover:text-blue-600 font-medium inline-flex items-center gap-1"
-              >
-                {t('aiProviders.dialog.customDoc')}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          )}
           {canEditModelConfig && (
             <div className="space-y-3">
               <p className={currentSectionLabelClasses}>{t('aiProviders.sections.model')}</p>
@@ -645,17 +627,6 @@ function ProviderCard({
                 <div className="space-y-1.5 pt-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label className={currentLabelClasses}>{t('aiProviders.dialog.codePlanPreset')}</Label>
-                    {typeInfo?.codePlanDocsUrl && (
-                      <a
-                        href={typeInfo.codePlanDocsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[12px] text-blue-500 hover:text-blue-600 font-medium inline-flex items-center gap-1"
-                      >
-                        {t('aiProviders.dialog.codePlanDoc')}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
                   </div>
                   <div className="flex gap-2 text-[13px]">
                     <button
@@ -915,7 +886,7 @@ function AddProviderDialog({
   onValidateKey,
   devModeUnlocked,
 }: AddProviderDialogProps) {
-  const { t, i18n } = useTranslation('settings');
+  const { t } = useTranslation('settings');
   const [selectedType, setSelectedType] = useState<ProviderType | null>(null);
   const [name, setName] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -948,7 +919,6 @@ function AddProviderDialog({
   const [authMode, setAuthMode] = useState<'oauth' | 'apikey'>('apikey');
 
   const typeInfo = PROVIDER_TYPE_INFO.find((t) => t.id === selectedType);
-  const providerDocsUrl = getProviderDocsUrl(typeInfo, i18n.language);
   const showModelIdField = shouldShowProviderModelId(typeInfo, devModeUnlocked);
   const codePlanPreset = typeInfo?.codePlanPresetBaseUrl && typeInfo?.codePlanPresetModelId
     ? {
@@ -956,9 +926,6 @@ function AddProviderDialog({
       modelId: typeInfo.codePlanPresetModelId,
     }
     : null;
-  const effectiveDocsUrl = selectedType === 'ark' && arkMode === 'codeplan'
-    ? (typeInfo?.codePlanDocsUrl || providerDocsUrl)
-    : providerDocsUrl;
   const isOAuth = typeInfo?.isOAuth ?? false;
   const supportsApiKey = typeInfo?.supportsApiKey ?? false;
   const vendorMap = new Map(vendors.map((vendor) => [vendor.id, vendor]));
@@ -1276,20 +1243,6 @@ function AddProviderDialog({
                 >
                     {t('aiProviders.dialog.change')}
                   </button>
-                  {effectiveDocsUrl && (
-                    <>
-                      <span className="mx-2 text-foreground/20">|</span>
-                      <a
-                        href={effectiveDocsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[13px] text-blue-500 hover:text-blue-600 font-medium inline-flex items-center gap-1"
-                      >
-                        {t('aiProviders.dialog.customDoc')}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </>
-                  )}
                 </div>
               </div>
 
@@ -1407,18 +1360,6 @@ function AddProviderDialog({
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <Label className={labelClasses}>{t('aiProviders.dialog.codePlanPreset')}</Label>
-                      {typeInfo?.codePlanDocsUrl && (
-                        <a
-                          href={typeInfo.codePlanDocsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[13px] text-blue-500 hover:text-blue-600 font-medium inline-flex items-center gap-1"
-                          tabIndex={-1}
-                        >
-                          {t('aiProviders.dialog.codePlanDoc')}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
                     </div>
                     <div className="flex gap-2 text-[13px]">
                       <button

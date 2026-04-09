@@ -1,6 +1,6 @@
 {
   "name": "openclawdesktop",
-  "version": "0.2.3",
+  "version": "0.3.7",
   "pnpm": {
     "onlyBuiltDependencies": [
       "@discordjs/opus",

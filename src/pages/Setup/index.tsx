@@ -743,7 +743,7 @@ function ProviderContent({
   onApiKeyChange,
   onConfiguredChange,
 }: ProviderContentProps) {
-  const { t, i18n } = useTranslation(['setup', 'settings']);
+  const { t } = useTranslation(['setup', 'settings']);
   const devModeUnlocked = useSettingsStore((state) => state.devModeUnlocked);
   const [showKey, setShowKey] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -1040,11 +1040,6 @@ function ProviderContent({
   }, [providerMenuOpen]);
 
   const selectedProviderData = providers.find((p) => p.id === selectedProvider);
-  const providerDocsUrl = getProviderDocsUrl(selectedProviderData, i18n.language);
-  const effectiveProviderDocsUrl =
-    selectedProvider === 'ark' && arkMode === 'codeplan'
-      ? selectedProviderData?.codePlanDocsUrl || providerDocsUrl
-      : providerDocsUrl;
   const selectedProviderIconUrl = selectedProviderData
     ? getProviderIconUrl(selectedProviderData.id)
     : undefined;

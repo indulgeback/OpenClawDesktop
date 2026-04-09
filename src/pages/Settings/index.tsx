@@ -1235,7 +1235,7 @@ export function Settings() {
                 <Button
                   variant="link"
                   className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
-                  onClick={() => window.electron.openExternal('https://openclawpro.io/')}
+                  onClick={() => window.electron.openExternal('https://openclawdesktop.org/')}
                 >
                   {t('about.docs')}
                 </Button>
