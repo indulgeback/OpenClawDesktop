@@ -22,7 +22,7 @@
   },
   "deleteDialog": {
     "title": "Agent を削除",
-    "message": "OpenClaw から「{{name}}」を削除しますか？この操作により Agent と、その OpenClaw 管理下のワークスペース、実行時ファイル、セッションファイルがディスクから完全に削除されます。"
+    "message": "YourClaw から「{{name}}」を削除しますか？この操作により Agent と、その YourClaw 管理下のワークスペース、実行時ファイル、セッションファイルがディスクから完全に削除されます。"
   },
   "settingsDialog": {
     "title": "{{name}} Settings",

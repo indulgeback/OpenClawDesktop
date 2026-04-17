@@ -345,7 +345,7 @@ function WelcomeContent() {
   return (
     <div className="text-center space-y-4">
       <div className="mb-4 flex justify-center">
-        <img src={openclawproIcon} alt="OpenClaw" className="h-16 w-16" />
+        <img src={openclawproIcon} alt="YourClaw" className="h-16 w-16" />
       </div>
       <h2 className="text-xl font-semibold">{t('welcome.title')}</h2>
       <p className="text-muted-foreground">{t('welcome.description')}</p>

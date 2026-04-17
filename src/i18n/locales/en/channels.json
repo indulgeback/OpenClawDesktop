@@ -160,17 +160,17 @@
             ]
         },
         "wechat": {
-            "description": "Connect personal WeChat with Tencent's official OpenClaw plugin by scanning a QR code",
+            "description": "Connect personal WeChat with Tencent's official YourClaw plugin by scanning a QR code",
             "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/GHYZwuPCriF0gWkXwkFcJ9zon3b",
             "instructions": [
-                "Click Generate QR Code to install and enable the official WeChat plugin inside OpenClaw",
+                "Click Generate QR Code to install and enable the official WeChat plugin inside YourClaw",
                 "Scan the QR code below with WeChat and confirm the connection on your phone",
                 "After linking succeeds, a new WeChat ClawBot chat will appear in WeChat automatically",
                 "You can repeat the QR flow later to add another WeChat account or reconnect an existing one"
             ]
         },
         "dingtalk": {
-            "description": "Connect DingTalk via OpenClaw channel plugin (Stream mode)",
+            "description": "Connect DingTalk via YourClaw channel plugin (Stream mode)",
             "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/Y5eNwiSiZidkLskrwtJc1rUln0b#doxcnDgA78n43DbkiQjI1OqUA7b",
             "fields": {
                 "clientId": {
@@ -195,7 +195,7 @@
                 }
             },
             "instructions": [
-                "Install and enable the dingtalk plugin in OpenClaw",
+                "Install and enable the dingtalk plugin in YourClaw",
                 "Create a DingTalk internal app and enable Stream mode",
                 "Fill in Client ID and Client Secret (required)",
                 "Fill in Robot Code / Corp ID / Agent ID if your setup requires them"

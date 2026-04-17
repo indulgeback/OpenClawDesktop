@@ -1,7 +1,7 @@
 {
   "steps": {
     "welcome": {
-      "title": "OpenClaw Desktopへようこそ",
+      "title": "YourClaw Desktopへようこそ",
       "description": "AIアシスタントの設定準備が整いました"
     },
     "runtime": {
@@ -22,12 +22,12 @@
     },
     "complete": {
       "title": "完了！",
-      "description": "OpenClaw Desktopを使用する準備が整いました"
+      "description": "YourClaw Desktopを使用する準備が整いました"
     }
   },
   "welcome": {
-    "title": "OpenClaw Desktopへようこそ",
-    "description": "OpenClaw DesktopはOpenClawのグラフィカルインターフェースで、お気に入りのメッセージングプラットフォームでAIアシスタントを簡単に使用できます。",
+    "title": "YourClaw Desktopへようこそ",
+    "description": "YourClaw DesktopはYourClawのグラフィカルインターフェースで、お気に入りのメッセージングプラットフォームでAIアシスタントを簡単に使用できます。",
     "features": {
       "noCommand": "コマンドライン不要",
       "modernUI": "モダンで美しいインターフェース",
@@ -40,7 +40,7 @@
     "viewLogs": "ログを表示",
     "recheck": "再チェック",
     "nodejs": "Node.js ランタイム",
-    "openclaw": "OpenClaw パッケージ",
+    "openclaw": "YourClaw パッケージ",
     "gateway": "ゲートウェイサービス",
     "startGateway": "ゲートウェイを起動",
     "status": {
@@ -48,11 +48,11 @@
       "success": "Node.js は利用可能です",
       "error": "失敗",
       "gatewayRunning": "ポート {{port}} で実行中",
-      "packageReady": "OpenClaw パッケージ準備完了"
+      "packageReady": "YourClaw パッケージ準備完了"
     },
     "issue": {
       "title": "環境の問題が検出されました",
-      "desc": "OpenClawが正しくインストールされていることを確認してください。詳細はログを確認してください。"
+      "desc": "YourClawが正しくインストールされていることを確認してください。詳細はログを確認してください。"
     },
     "logs": {
       "title": "アプリケーションログ",
@@ -113,7 +113,7 @@
   },
   "complete": {
     "title": "セットアップ完了！",
-    "subtitle": "OpenClaw Desktopの構成が完了し、使用準備が整いました。AIアシスタントとのチャットを開始できます。",
+    "subtitle": "YourClaw Desktopの構成が完了し、使用準備が整いました。AIアシスタントとのチャットを開始できます。",
     "provider": "AI プロバイダー",
     "components": "コンポーネント",
     "gateway": "ゲートウェイ",

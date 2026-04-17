@@ -111,11 +111,11 @@
 
   ; Ask user if they want to completely remove all user data
   MessageBox MB_YESNO|MB_ICONQUESTION \
-    "Do you want to completely remove all OpenClaw user data?$\r$\n$\r$\nThis will delete:$\r$\n  • .openclaw folder (configuration & skills)$\r$\n  • AppData\Local\openclawpro (local app data)$\r$\n  • AppData\Roaming\openclawpro (roaming app data)$\r$\n$\r$\nSelect 'No' to keep your data for future reinstallation." \
+    "Do you want to completely remove all YourClaw user data?$\r$\n$\r$\nThis will delete:$\r$\n  • .openclaw folder (configuration & skills)$\r$\n  • AppData\Local\openclawpro (local app data)$\r$\n  • AppData\Roaming\openclawpro (roaming app data)$\r$\n$\r$\nSelect 'No' to keep your data for future reinstallation." \
     /SD IDNO IDYES _cu_removeData IDNO _cu_skipRemove
 
   _cu_removeData:
-    ; Kill any lingering OpenClaw processes to release file locks on electron-store
+    ; Kill any lingering YourClaw processes to release file locks on electron-store
     ; JSON files (settings.json, openclawpro-providers.json, window-state.json, etc.)
     ${nsProcess::FindProcess} "${APP_EXECUTABLE_FILENAME}" $R0
     ${if} $R0 == 0

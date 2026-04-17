@@ -1,7 +1,7 @@
 {
   "steps": {
     "welcome": {
-      "title": "Welcome to OpenClaw",
+      "title": "Welcome to YourClaw",
       "description": "Your AI assistant is ready to be configured"
     },
     "runtime": {
@@ -22,12 +22,12 @@
     },
     "complete": {
       "title": "All Set!",
-      "description": "OpenClaw is ready to use"
+      "description": "YourClaw is ready to use"
     }
   },
   "welcome": {
-    "title": "Welcome to OpenClaw",
-    "description": "OpenClaw is a graphical interface for OpenClaw, making it easy to use AI assistants across your favorite messaging platforms.",
+    "title": "Welcome to YourClaw",
+    "description": "YourClaw is a graphical interface for YourClaw, making it easy to use AI assistants across your favorite messaging platforms.",
     "features": {
       "noCommand": "Zero command-line required",
       "modernUI": "Modern, beautiful interface",
@@ -40,7 +40,7 @@
     "viewLogs": "View Logs",
     "recheck": "Re-check",
     "nodejs": "Node.js Runtime",
-    "openclaw": "OpenClaw Package",
+    "openclaw": "YourClaw Package",
     "gateway": "Gateway Service",
     "startGateway": "Start Gateway",
     "status": {
@@ -48,11 +48,11 @@
       "success": "Node.js is available",
       "error": "Failed",
       "gatewayRunning": "Running on port {{port}}",
-      "packageReady": "OpenClaw package ready"
+      "packageReady": "YourClaw package ready"
     },
     "issue": {
       "title": "Environment issue detected",
-      "desc": "Please ensure OpenClaw is properly installed. Check the logs for details."
+      "desc": "Please ensure YourClaw is properly installed. Check the logs for details."
     },
     "logs": {
       "title": "Application Logs",
@@ -113,7 +113,7 @@
   },
   "complete": {
     "title": "Setup Complete!",
-    "subtitle": "OpenClaw is configured and ready to use. You can now start chatting with your AI assistant.",
+    "subtitle": "YourClaw is configured and ready to use. You can now start chatting with your AI assistant.",
     "provider": "AI Provider",
     "components": "Components",
     "gateway": "Gateway",

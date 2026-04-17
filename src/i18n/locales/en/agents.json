@@ -22,7 +22,7 @@
   },
   "deleteDialog": {
     "title": "Delete Agent",
-    "message": "Delete \"{{name}}\" from OpenClaw? This permanently deletes the agent and its OpenClaw-managed workspace, runtime, and session files from disk."
+    "message": "Delete \"{{name}}\" from YourClaw? This permanently deletes the agent and its YourClaw-managed workspace, runtime, and session files from disk."
   },
   "settingsDialog": {
     "title": "{{name}} Settings",
@@ -39,7 +39,7 @@
   },
   "removeChannelDialog": {
     "title": "Remove Channel",
-    "message": "Remove {{name}} from OpenClaw? This deletes the current channel configuration."
+    "message": "Remove {{name}} from YourClaw? This deletes the current channel configuration."
   },
   "toast": {
     "agentCreated": "Agent created",

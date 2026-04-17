@@ -1,6 +1,6 @@
 appId: app.openclaw.desktop
-productName: OpenClaw
-copyright: Copyright © 2026 OpenClaw
+productName: YourClawDesktop
+copyright: Copyright © 2026 YourClawDesktop
 compression: maximum
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
@@ -22,7 +22,7 @@ extraResources:
       - '!icons/*.svg'
       - '!bin/**'
       - '!screenshot/**'
-  # OpenClaw package (node_modules copied separately by afterPack hook
+  # OpenClawDesktop package (node_modules copied separately by afterPack hook
   # because electron-builder respects .gitignore which excludes node_modules/)
   - from: build/openclaw/
     to: openclaw/
@@ -82,8 +82,8 @@ mac:
   entitlementsInherit: entitlements.mac.plist
   notarize: true
   extendInfo:
-    NSMicrophoneUsageDescription: OpenClaw requires microphone access for voice features
-    NSCameraUsageDescription: OpenClaw requires camera access for video features
+    NSMicrophoneUsageDescription: YourClaw requires microphone access for voice features
+    NSCameraUsageDescription: YourClaw requires camera access for video features
 
 dmg:
   background: resources/dmg-background.png
@@ -127,8 +127,8 @@ nsis:
   differentialPackage: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: OpenClaw
-  uninstallDisplayName: OpenClaw
+  shortcutName: YourClaw
+  uninstallDisplayName: YourClaw
   license: LICENSE
   include: scripts/installer.nsh
   installerIcon: resources/icons/icon.ico
@@ -155,14 +155,14 @@ linux:
       arch:
         - x64
   category: Utility
-  maintainer: OpenClaw Team <public@valuecell.ai>
-  vendor: OpenClaw
-  synopsis: AI Assistant powered by OpenClaw
-  description: OpenClaw is a graphical AI assistant application that integrates with OpenClaw Gateway to provide intelligent automation and assistance across multiple messaging platforms.
+  maintainer: YourClaw Team <public@valuecell.ai>
+  vendor: YourClaw
+  synopsis: AI Assistant powered by YourClaw
+  description: YourClaw is a graphical AI assistant application that integrates with YourClaw Gateway to provide intelligent automation and assistance across multiple messaging platforms.
   desktop:
     entry:
-      Name: OpenClaw
-      Comment: AI Assistant powered by OpenClaw
+      Name: YourClaw
+      Comment: AI Assistant powered by YourClaw
       Categories: Utility;Network;
       Keywords: ai;assistant;automation;chat;
       StartupWMClass: openclaw

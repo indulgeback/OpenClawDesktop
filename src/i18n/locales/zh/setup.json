@@ -1,7 +1,7 @@
 {
   "steps": {
     "welcome": {
-      "title": "欢迎使用 OpenClaw",
+      "title": "欢迎使用 YourClaw",
       "description": "您的 AI 助手已准备好进行配置"
     },
     "runtime": {
@@ -22,12 +22,12 @@
     },
     "complete": {
       "title": "准备就绪！",
-      "description": "OpenClaw 已准备好使用"
+      "description": "YourClaw 已准备好使用"
     }
   },
   "welcome": {
-    "title": "欢迎使用 OpenClaw",
-    "description": "OpenClaw 是 OpenClaw 的图形界面，让您可以在喜爱的消息平台上轻松使用 AI 助手。",
+    "title": "欢迎使用 YourClaw",
+    "description": "YourClaw 是 YourClaw 的图形界面，让您可以在喜爱的消息平台上轻松使用 AI 助手。",
     "features": {
       "noCommand": "无需命令行",
       "modernUI": "现代美观的界面",
@@ -40,7 +40,7 @@
     "viewLogs": "查看日志",
     "recheck": "重新检查",
     "nodejs": "Node.js 运行时",
-    "openclaw": "OpenClaw 包",
+    "openclaw": "YourClaw 包",
     "gateway": "网关服务",
     "startGateway": "启动网关",
     "status": {
@@ -48,11 +48,11 @@
       "success": "Node.js 可用",
       "error": "失败",
       "gatewayRunning": "运行在端口 {{port}}",
-      "packageReady": "OpenClaw 包已就绪"
+      "packageReady": "YourClaw 包已就绪"
     },
     "issue": {
       "title": "检测到环境问题",
-      "desc": "请确保 OpenClaw 已正确安装。查看日志以获取详情。"
+      "desc": "请确保 YourClaw 已正确安装。查看日志以获取详情。"
     },
     "logs": {
       "title": "应用程序日志",
@@ -113,7 +113,7 @@
   },
   "complete": {
     "title": "设置完成！",
-    "subtitle": "OpenClaw 已配置并准备就绪。您现在可以开始与您的 AI 助手聊天了。",
+    "subtitle": "YourClaw 已配置并准备就绪。您现在可以开始与您的 AI 助手聊天了。",
     "provider": "AI 提供商",
     "components": "组件",
     "gateway": "网关",
