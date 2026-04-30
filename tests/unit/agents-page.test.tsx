@@ -1,11 +1,14 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { Agents } from '../../src/pages/Agents/index';
 
 const hostApiFetchMock = vi.fn();
 const subscribeHostEventMock = vi.fn();
 const fetchAgentsMock = vi.fn();
+const refreshProviderSnapshotMock = vi.fn();
+const switchSessionMock = vi.fn();
 
 const { gatewayState, agentsState } = vi.hoisted(() => ({
   gatewayState: {
@@ -26,16 +29,40 @@ vi.mock('@/stores/agents', () => ({
   useAgentsStore: (selector?: (state: typeof agentsState & {
     fetchAgents: typeof fetchAgentsMock;
     createAgent: ReturnType<typeof vi.fn>;
+    createAgentFromTemplate: ReturnType<typeof vi.fn>;
+    updateAgentModel: ReturnType<typeof vi.fn>;
     deleteAgent: ReturnType<typeof vi.fn>;
   }) => unknown) => {
     const state = {
       ...agentsState,
       fetchAgents: fetchAgentsMock,
       createAgent: vi.fn(),
+      createAgentFromTemplate: vi.fn(),
+      updateAgentModel: vi.fn(),
       deleteAgent: vi.fn(),
     };
     return typeof selector === 'function' ? selector(state) : state;
   },
+}));
+
+vi.mock('@/stores/chat', () => ({
+  useChatStore: (selector: (state: { switchSession: ReturnType<typeof vi.fn> }) => unknown) =>
+    selector({ switchSession: switchSessionMock }),
+}));
+
+vi.mock('@/stores/providers', () => ({
+  useProviderStore: (selector: (state: {
+    refreshProviderSnapshot: ReturnType<typeof vi.fn>;
+    accounts: unknown[];
+    statuses: unknown[];
+    vendors: unknown[];
+  }) => unknown) =>
+    selector({
+      refreshProviderSnapshot: refreshProviderSnapshotMock,
+      accounts: [],
+      statuses: [],
+      vendors: [],
+    }),
 }));
 
 vi.mock('@/lib/host-api', () => ({
@@ -65,6 +92,7 @@ describe('Agents page status refresh', () => {
     vi.clearAllMocks();
     gatewayState.status = { state: 'running', port: 18789 };
     fetchAgentsMock.mockResolvedValue(undefined);
+    refreshProviderSnapshotMock.mockResolvedValue(undefined);
     hostApiFetchMock.mockResolvedValue({
       success: true,
       channels: [],
@@ -80,7 +108,7 @@ describe('Agents page status refresh', () => {
       return vi.fn();
     });
 
-    render(<Agents />);
+    render(<Agents />, { wrapper: MemoryRouter });
 
     await waitFor(() => {
       expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
@@ -101,7 +129,7 @@ describe('Agents page status refresh', () => {
   it('refetches channel accounts when the gateway transitions to running after mount', async () => {
     gatewayState.status = { state: 'starting', port: 18789 };
 
-    const { rerender } = render(<Agents />);
+    const { rerender } = render(<Agents />, { wrapper: MemoryRouter });
 
     await waitFor(() => {
       expect(fetchAgentsMock).toHaveBeenCalledTimes(1);

@@ -1,0 +1,11 @@
+{
+  "owner": "rylena",
+  "slug": "aada",
+  "displayName": "AADA (Agent to Agent Advertising)",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1771791454307,
+    "commit": "https://github.com/openclaw/skills/commit/90cf7bdf2878eaba48dff5bc65ebf551517276b4"
+  },
+  "history": []
+}

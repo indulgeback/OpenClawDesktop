@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getAllSkillConfigs, updateSkillConfig } from '../../utils/skill-config';
+import { getAllSkillConfigs, installSkillPreset, updateSkillConfig } from '../../utils/skill-config';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 
@@ -31,9 +31,32 @@ export async function handleSkillRoutes(
     return true;
   }
 
+  if (url.pathname === '/api/skills/presets/install' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody<{ templateId: string; categoryId: string }>(req);
+      await installSkillPreset(body.templateId, body.categoryId);
+      sendJson(res, 200, { success: true });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/clawhub/capability' && req.method === 'GET') {
+    try {
+      sendJson(res, 200, {
+        success: true,
+        capability: await ctx.clawHubService.getMarketplaceCapability(),
+      });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: String(error) });
+    }
+    return true;
+  }
+
   if (url.pathname === '/api/clawhub/search' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<{ query: string; limit?: number }>(req);
       sendJson(res, 200, {
         success: true,
         results: await ctx.clawHubService.search(body),
@@ -46,7 +69,7 @@ export async function handleSkillRoutes(
 
   if (url.pathname === '/api/clawhub/install' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<{ slug: string; version?: string; force?: boolean }>(req);
       await ctx.clawHubService.install(body);
       sendJson(res, 200, { success: true });
     } catch (error) {
@@ -57,7 +80,7 @@ export async function handleSkillRoutes(
 
   if (url.pathname === '/api/clawhub/uninstall' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<{ slug: string }>(req);
       await ctx.clawHubService.uninstall(body);
       sendJson(res, 200, { success: true });
     } catch (error) {

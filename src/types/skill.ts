@@ -21,6 +21,7 @@ export interface Skill {
   isBundled?: boolean;
   dependencies?: string[];
   source?: string;
+  sourceKind?: 'bundled' | 'clawhub' | 'market-preset';
   baseDir?: string;
   filePath?: string;
 }
@@ -51,6 +52,43 @@ export interface MarketplaceSkill {
   author?: string;
   downloads?: number;
   stars?: number;
+}
+
+export interface SkillMarketCategory {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface SkillTemplateSummary {
+  id: string;
+  templateId: string;
+  name: string;
+  description: string;
+  categoryId: string;
+  category: string;
+  version: string;
+  badge: string;
+  status: 'stable';
+  tags: string[];
+  emoji?: string;
+  sourceRepo?: string;
+  sourceCommit?: string;
+  sourcePath?: string;
+  previewFiles: string[];
+}
+
+export interface SkillTemplateDetail extends SkillTemplateSummary {
+  files: Record<string, string>;
+}
+
+export interface SkillMarketCatalog {
+  sourceRepo: string;
+  sourceCommit: string;
+  sourceCommitShort: string;
+  generatedAt: string;
+  categories: SkillMarketCategory[];
+  templates: SkillTemplateSummary[];
 }
 
 /**

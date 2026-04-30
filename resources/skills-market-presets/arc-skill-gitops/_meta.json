@@ -1,0 +1,17 @@
+{
+  "owner": "trypto1019",
+  "slug": "arc-skill-gitops",
+  "displayName": "Skill Gitops",
+  "latest": {
+    "version": "1.1.0",
+    "publishedAt": 1771290578361,
+    "commit": "https://github.com/openclaw/skills/commit/2f78d57f2721658888151a473857269bff7a4ce5"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1771185228041,
+      "commit": "https://github.com/openclaw/skills/commit/1c55e680cbf7581adeb5a97dfa1bcfee1c09932e"
+    }
+  ]
+}

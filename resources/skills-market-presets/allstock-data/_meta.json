@@ -1,0 +1,17 @@
+{
+  "owner": "hacksing",
+  "slug": "allstock-data",
+  "displayName": "allstock-data",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1772293679850,
+    "commit": "https://github.com/openclaw/skills/commit/f91da4b1d4291c0434d6af736eef5969124afbe0"
+  },
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1771776441041,
+      "commit": "https://github.com/openclaw/skills/commit/4fe6335f302c1f4bebe632778220a4e34b76140a"
+    }
+  ]
+}

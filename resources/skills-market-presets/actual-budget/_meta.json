@@ -1,0 +1,17 @@
+{
+  "owner": "thisisjeron",
+  "slug": "actual-budget",
+  "displayName": "Actual Budget",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1770517721765,
+    "commit": "https://github.com/openclaw/skills/commit/cfc1567ff0301459485bc0c521e5e1a1e91bf529"
+  },
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1769585816231,
+      "commit": "https://github.com/clawdbot/skills/commit/87cf26d26ab3fad3af8f0c8ca744a824c36a23aa"
+    }
+  ]
+}

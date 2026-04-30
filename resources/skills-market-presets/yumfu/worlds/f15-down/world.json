@@ -1,0 +1,95 @@
+{
+  "world_id": "f15-down",
+  "name": "F15 Down: Azure Peninsula War",
+  "name_zh": "F15坠落：蔚蓝半岛战争",
+  "genre": "modern_military_strategy",
+  "setting": "alternative_2026_middle_east",
+  "theme": "geopolitical_conflict",
+  
+  "description": "A realistic modern military strategy game set in a fictionalized Middle East. Choose your faction and navigate the complex web of alliances, proxy wars, and moral dilemmas in a region on the brink of total war.",
+  
+  "description_zh": "设定在虚构中东的现代军事策略游戏。选择你的阵营，在这个濒临全面战争的地区中，应对复杂的联盟关系、代理人战争和道德困境。",
+  
+  "playable_factions": [
+    "western_alliance",
+    "phoenix_state",
+    "mountain_republic",
+    "gulf_emirates",
+    "eastern_coalition",
+    "desert_kingdom"
+  ],
+  
+  "game_length": "90_days_campaign",
+  
+  "difficulty": "hard",
+  
+  "features": [
+    "strategic_decision_making",
+    "moral_dilemmas",
+    "resource_management",
+    "special_operations",
+    "diplomatic_options",
+    "consequences_system",
+    "fog_of_war",
+    "civilian_casualties"
+  ],
+  
+  "art_style": "command_and_conquer_game_style",
+  
+  "art_direction": {
+    "visual_style": "Command & Conquer RTS game aesthetic",
+    "color_palette": "Saturated military colors, red/blue faction coding",
+    "ui_style": "Tactical HUD overlays, minimap indicators",
+    "character_portraits": "C&C Generals style - dramatic 3D renders with tactical gear",
+    "location_maps": "Isometric battlefield view with unit icons and territory markers",
+    "combat_scenes": "Dynamic action shots like C&C cutscenes - explosions, vehicles, troops",
+    "reference_games": [
+      "Command & Conquer: Generals",
+      "Command & Conquer: Red Alert",
+      "DEFCON",
+      "World in Conflict"
+    ],
+    "avoid": [
+      "photorealistic military photography",
+      "gritty war documentary style",
+      "generic stock military photos"
+    ]
+  },
+  
+  "start_date": "Day 1, 0600 Hours",
+  
+  "initial_event": "viper_strike_assassination",
+  
+  "win_conditions": [
+    "achieve_ceasefire_with_favorable_terms",
+    "eliminate_enemy_military_capability",
+    "gain_regional_hegemony",
+    "broker_lasting_peace_deal"
+  ],
+  
+  "lose_conditions": [
+    "faction_collapse",
+    "international_isolation",
+    "economic_bankruptcy",
+    "domestic_coup",
+    "total_war_escalation"
+  ],
+  
+  "content_warnings": [
+    "war_violence",
+    "civilian_casualties",
+    "moral_dilemmas",
+    "geopolitical_themes"
+  ],
+  
+  "inspirations": [
+    "recent_middle_east_conflicts_2024_2026",
+    "command_modern_operations",
+    "this_war_of_mine",
+    "papers_please"
+  ],
+  
+  "created": "2026-04-05",
+  "status": "development",
+  "local_only": true
+}

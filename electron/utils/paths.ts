@@ -74,7 +74,7 @@ export function ensureDir(dir: string): void {
  * Get resources directory (for bundled assets)
  */
 export function getResourcesDir(): string {
-  if (app.isPackaged) {
+  if (app?.isPackaged) {
     return join(process.resourcesPath, 'resources');
   }
   return join(__dirname, '../../resources');

@@ -1,6 +1,10 @@
 {
     "title": "スキル",
     "subtitle": "AI機能の閲覧と管理",
+    "scene": {
+        "market": "市場",
+        "manage": "管理"
+    },
     "refresh": "更新",
     "openFolder": "スキルフォルダを開く",
     "gatewayWarning": "ゲートウェイが稼働していません。アクティブなゲートウェイがないとスキルを読み込めません。",
@@ -11,6 +15,9 @@
     "filter": {
         "all": "すべて ({{count}})",
         "builtIn": "内蔵 ({{count}})",
+        "bundled": "同梱スキル ({{count}})",
+        "builtInMarket": "マーケットスキル ({{count}})",
+        "clawhub": "ClawHub 追加 ({{count}})",
         "marketplace": "マーケットプレイス ({{count}})"
     },
     "search": "スキルを検索...",
@@ -61,6 +68,8 @@
         "badge": {
             "bundled": "内蔵",
             "managed": "管理ディレクトリ",
+            "clawhub": "ClawHub から追加",
+            "marketPreset": "マーケットスキル",
             "workspace": "ワークスペース",
             "extra": "追加ディレクトリ",
             "agentsPersonal": "個人 .agents",
@@ -72,6 +81,7 @@
         "enabled": "スキルを有効にしました",
         "disabled": "スキルを無効にしました",
         "installed": "スキルをインストールして有効にしました",
+        "presetInstalled": "{{name}} を追加しました",
         "uninstalled": "スキルのアンインストールに成功しました",
         "openedEditor": "エディターで開きました",
         "failedEditor": "エディターを開けませんでした",
@@ -107,5 +117,42 @@
         "noResults": "検索に一致するスキルが見つかりません。",
         "emptyPrompt": "新しいスキルを検索して機能を拡張しましょう。",
         "searchError": "ClawHub検索に失敗しました。接続またはインストールを確認してください。"
+    },
+    "categories": {
+        "git-and-github": "Git と GitHub",
+        "coding-agents-and-ides": "コーディングエージェントと IDE",
+        "browser-and-automation": "ブラウザと自動化",
+        "web-and-frontend-development": "Web とフロントエンド開発",
+        "devops-and-cloud": "DevOps とクラウド",
+        "image-and-video-generation": "画像と動画生成",
+        "apple-apps-and-services": "Apple アプリとサービス",
+        "search-and-research": "検索とリサーチ",
+        "clawdbot-tools": "Clawdbot ツール",
+        "cli-utilities": "CLI ユーティリティ",
+        "marketing-and-sales": "マーケティングと営業",
+        "productivity-and-tasks": "生産性とタスク",
+        "ai-and-llms": "AI と LLM",
+        "media-and-streaming": "メディアとストリーミング",
+        "notes-and-pkm": "ノートと PKM",
+        "ios-and-macos-development": "iOS と macOS 開発",
+        "transportation": "移動・交通",
+        "personal-development": "自己成長",
+        "health-and-fitness": "健康とフィットネス",
+        "communication": "コミュニケーション",
+        "speech-and-transcription": "音声と文字起こし",
+        "smart-home-and-iot": "スマートホームと IoT",
+        "shopping-and-e-commerce": "ショッピングと EC",
+        "calendar-and-scheduling": "カレンダーと予定管理",
+        "pdf-and-documents": "PDF とドキュメント",
+        "self-hosted-and-automation": "セルフホストと自動化",
+        "security-and-passwords": "セキュリティとパスワード",
+        "gaming": "ゲーム"
+    },
+    "market": {
+        "sourceNotice": "内蔵の厳選スキルテンプレートは VoltAgent/awesome-openclaw-skills のオフラインスナップショットから提供されます。さらに必要なら管理画面から ClawHub のスキルを追加できます。",
+        "sourceBadge": "内蔵",
+        "add": "追加",
+        "manage": "管理",
+        "categoryCount": "{{count}} 個のテンプレート"
     }
 }

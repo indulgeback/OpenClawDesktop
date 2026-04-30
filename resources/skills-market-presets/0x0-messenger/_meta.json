@@ -1,0 +1,17 @@
+{
+  "owner": "eijiac24",
+  "slug": "0x0-messenger",
+  "displayName": "0x0 Messenger",
+  "latest": {
+    "version": "1.1.1",
+    "publishedAt": 1773316547901,
+    "commit": "https://github.com/openclaw/skills/commit/58e6aaf1ffcae52b5039dfbc20ad7ebe5da709cf"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1771886731773,
+      "commit": "https://github.com/openclaw/skills/commit/d3494151d4ef9e81e83d3956211e468cf2f45d15"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "owner": "nantes",
+  "slug": "agent-metrics-osiris",
+  "displayName": "Agent Metrics",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1771783990572,
+    "commit": "https://github.com/openclaw/skills/commit/a682e78c86bdbc50330b630715283b401291a793"
+  },
+  "history": []
+}

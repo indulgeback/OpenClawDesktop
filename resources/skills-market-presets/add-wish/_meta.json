@@ -1,0 +1,11 @@
+{
+  "owner": "leebellon",
+  "slug": "add-wish",
+  "displayName": "/add-wish — Universal Add to Wishlist",
+  "latest": {
+    "version": "1.1.0",
+    "publishedAt": 1771602847484,
+    "commit": "https://github.com/openclaw/skills/commit/848be039b6ac58d8f52f7260cc78493322a48371"
+  },
+  "history": []
+}

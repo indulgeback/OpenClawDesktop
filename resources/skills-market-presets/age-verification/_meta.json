@@ -1,0 +1,11 @@
+{
+  "owner": "raghulpasupathi",
+  "slug": "age-verification",
+  "displayName": "Age Verification",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1771687933466,
+    "commit": "https://github.com/openclaw/skills/commit/652c79449a2b63ad223071ddd4ad413c0e5629af"
+  },
+  "history": []
+}

@@ -29,6 +29,8 @@ extraResources:
   # Pre-bundled third-party skills (full directories, not only SKILL.md)
   - from: build/preinstalled-skills/
     to: resources/preinstalled-skills/
+  - from: resources/skills-market-presets/
+    to: resources/skills-market-presets/
   # NOTE: OpenClaw plugin mirrors (dingtalk, etc.) are bundled by the
   # afterPack hook (after-pack.cjs) directly from node_modules, so they
   # don't need an extraResources entry here.

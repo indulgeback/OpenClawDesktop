@@ -563,3 +563,7 @@ export async function syncDefaultProviderToRuntime(
     { onlyIfRunning: true },
   );
 }
+
+export async function syncAgentModelOverrideToRuntime(agentId: string): Promise<void> {
+  logger.info(`[provider-runtime] Agent model override sync requested for "${agentId}"`);
+}

@@ -102,6 +102,7 @@ Complete the entire setup—from installation to your first AI interaction—thr
 
 Communicate with AI agents through a modern chat experience. Support for multiple conversation contexts, message history, rich content rendering with Markdown, and direct `@agent` routing in the main composer for multi-agent setups.
 When you target another agent with `@agent`, OpenClaw switches into that agent's own conversation context directly instead of relaying through the default agent. Agent workspaces stay separate by default, and stronger isolation depends on OpenClaw sandbox settings.
+The Agents page also includes a bundled offline Agent Market, so curated agent templates can be added without fetching marketplace data at runtime.
 
 ### 📡 Multi-Channel Management
 
@@ -117,7 +118,7 @@ Schedule AI tasks to run automatically. Define triggers, set intervals, and let 
 
 Extend your AI agents with pre-built skills. Browse, install, and manage skills through the integrated skill panel—no package managers required.
 OpenClaw also pre-bundles full document-processing skills (`pdf`, `xlsx`, `docx`, `pptx`), deploys them automatically to the managed skills directory (default `~/.openclaw/skills`) on startup, and enables them by default on first install. Additional bundled skills (`find-skills`, `self-improving-agent`, `tavily-search`, `brave-web-search`) are also enabled by default; if required API keys are missing, OpenClaw will surface configuration errors in runtime.  
-The Skills page can display skills discovered from multiple OpenClaw sources (managed dir, workspace, and extra skill dirs), and now shows each skill's actual location so you can open the real folder directly.
+The Skills page includes a bundled offline Skill Market for curated presets, can display skills discovered from multiple OpenClaw sources (managed dir, workspace, and extra skill dirs), and shows each skill's actual location so you can open the real folder directly.
 
 Environment variables for bundled search skills:
 
@@ -345,7 +346,7 @@ Chain multiple skills together to create sophisticated automation pipelines. Pro
 ```bash
 # Development
 pnpm run init             # Install dependencies + download uv
-pnpm dev                  # Start with hot reload (auto-prepares bundled skills if missing)
+pnpm dev                  # Start with hot reload (auto-prepares bundled skills and skill market if missing)
 
 # Quality
 pnpm lint                 # Run ESLint
@@ -360,7 +361,7 @@ pnpm run comms:compare    # Compare replay metrics against baseline thresholds
 # Build & Package
 pnpm run build:vite       # Build frontend only
 pnpm build                # Full production build (with packaging assets)
-pnpm package              # Package for current platform (includes bundled preinstalled skills)
+pnpm package              # Package for current platform (includes bundled agent/skill market data and preinstalled skills)
 pnpm package:mac          # Package for macOS
 pnpm package:win          # Package for Windows
 pnpm package:linux        # Package for Linux

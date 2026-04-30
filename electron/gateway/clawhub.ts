@@ -40,12 +40,36 @@ export interface ClawHubInstalledSkillResult {
     baseDir?: string;
 }
 
+type SkillMarker = {
+    source?: string;
+    slug?: string;
+    version?: string;
+};
+
+export interface MarketplaceProvider {
+    getCapability(): Promise<{ mode: string; canSearch: boolean; canInstall: boolean; reason?: string }>;
+    search(params: ClawHubSearchParams): Promise<ClawHubSkillResult[]>;
+    install(params: ClawHubInstallParams): Promise<void>;
+}
+
 export class ClawHubService {
     private workDir: string;
     private cliPath: string;
     private cliEntryPath: string;
     private useNodeRunner: boolean;
     private ansiRegex: RegExp;
+    private marketplaceProvider: MarketplaceProvider | null = null;
+
+    setMarketplaceProvider(provider: MarketplaceProvider): void {
+        this.marketplaceProvider = provider;
+    }
+
+    async getMarketplaceCapability(): Promise<{ mode: string; canSearch: boolean; canInstall: boolean; reason?: string }> {
+        if (this.marketplaceProvider) {
+            return this.marketplaceProvider.getCapability();
+        }
+        return { mode: 'clawhub', canSearch: true, canInstall: true };
+    }
 
     constructor() {
         // Use the user's OpenClaw config directory (~/.openclaw) for skill management
@@ -85,6 +109,16 @@ export class ClawHubService {
             if (!nameMatch) return null;
             const name = nameMatch[1].trim();
             return name || null;
+        } catch {
+            return null;
+        }
+    }
+
+    private tryReadMarker(skillDir: string): SkillMarker | null {
+        const markerPath = path.join(skillDir, '.openclawpro-preinstalled.json');
+        if (!fs.existsSync(markerPath)) return null;
+        try {
+            return JSON.parse(fs.readFileSync(markerPath, 'utf8')) as SkillMarker;
         } catch {
             return null;
         }
@@ -145,7 +179,7 @@ export class ClawHubService {
             const isWin = process.platform === 'win32';
             const useShell = isWin && !this.useNodeRunner;
             const { NODE_OPTIONS: _nodeOptions, ...baseEnv } = process.env;
-            const env = {
+            const env: NodeJS.ProcessEnv = {
                 ...baseEnv,
                 CI: 'true',
                 FORCE_COLOR: '0',
@@ -194,9 +228,13 @@ export class ClawHubService {
     }
 
     /**
-     * Search for skills
+     * Search for skills. Delegates to the marketplace provider if one is set,
+     * otherwise falls back to the local ClawHub CLI.
      */
     async search(params: ClawHubSearchParams): Promise<ClawHubSkillResult[]> {
+        if (this.marketplaceProvider) {
+            return this.marketplaceProvider.search(params);
+        }
         try {
             // If query is empty, use 'explore' to show trending skills
             if (!params.query || params.query.trim() === '') {
@@ -298,9 +336,13 @@ export class ClawHubService {
     }
 
     /**
-     * Install a skill
+     * Install a skill. Delegates to the marketplace provider if one is set,
+     * otherwise falls back to the local ClawHub CLI.
      */
     async install(params: ClawHubInstallParams): Promise<void> {
+        if (this.marketplaceProvider) {
+            return this.marketplaceProvider.install(params);
+        }
         const args = ['install', params.slug];
 
         if (params.version) {
@@ -348,26 +390,50 @@ export class ClawHubService {
      */
     async listInstalled(): Promise<ClawHubInstalledSkillResult[]> {
         try {
-            const output = await this.runCommand(['list']);
-            if (!output || output.includes('No installed skills')) {
-                return [];
+            const installed = new Map<string, ClawHubInstalledSkillResult>();
+            try {
+                const output = await this.runCommand(['list']);
+                if (output && !output.includes('No installed skills')) {
+                    const lines = output.split('\n').filter(l => l.trim());
+                    for (const line of lines) {
+                        const cleanLine = this.stripAnsi(line);
+                        const match = cleanLine.match(/^(\S+)\s+v?(\d+\.\S+)/);
+                        if (!match) continue;
+                        const slug = match[1];
+                        installed.set(slug, {
+                            slug,
+                            version: match[2],
+                            source: 'openclaw-managed',
+                            baseDir: path.join(this.workDir, 'skills', slug),
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('ClawHub list command error:', error);
             }
 
-            const lines = output.split('\n').filter(l => l.trim());
-            return lines.map(line => {
-                const cleanLine = this.stripAnsi(line);
-                const match = cleanLine.match(/^(\S+)\s+v?(\d+\.\S+)/);
-                if (match) {
-                    const slug = match[1];
-                    return {
-                        slug,
-                        version: match[2],
-                        source: 'openclaw-managed',
-                        baseDir: path.join(this.workDir, 'skills', slug),
-                    };
+            const skillsRoot = path.join(this.workDir, 'skills');
+            if (fs.existsSync(skillsRoot)) {
+                const entries = fs.readdirSync(skillsRoot, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (!entry.isDirectory()) continue;
+                    const skillDir = path.join(skillsRoot, entry.name);
+                    const skillManifestPath = path.join(skillDir, 'SKILL.md');
+                    if (!fs.existsSync(skillManifestPath)) continue;
+
+                    const marker = this.tryReadMarker(skillDir);
+                    const existing = installed.get(entry.name);
+                    const version = marker?.version || existing?.version || 'unknown';
+                    installed.set(entry.name, {
+                        slug: entry.name,
+                        version,
+                        source: marker?.source || existing?.source || 'openclaw-managed',
+                        baseDir: skillDir,
+                    });
                 }
-                return null;
-            }).filter((s): s is ClawHubInstalledSkillResult => s !== null);
+            }
+
+            return [...installed.values()];
         } catch (error) {
             console.error('ClawHub list error:', error);
             return [];

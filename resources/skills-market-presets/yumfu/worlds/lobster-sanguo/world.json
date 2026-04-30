@@ -1,0 +1,191 @@
+{
+  "world_id": "lobster-sanguo",
+  "name": "龙虾三国",
+  "name_en": "Lobster Kingdom: Three Realms",
+  "genre": "wuxia_historical_strategy",
+  "setting": "three_kingdoms_era_china_reimagined",
+  "theme": "loyalty_betrayal_ambition_brotherhood",
+  "default_language": "zh",
+  "supported_languages": ["zh", "en"],
+  "language_note": "游戏默认中文，玩家随时可以说'切换英文'或'switch to English'切换语言",
+
+  "description": "东汉末年，天下大乱。魏、蜀、吴三分天下。你将在这个乱世中书写自己的故事——是忠义两全的英雄，还是乱世枭雄，亦或是运筹帷幄的谋士？龙虾三国，乱世由你主宰。",
+  "description_en": "The Han Dynasty crumbles. Three kingdoms rise: Wei, Shu, and Wu. Will you forge your legend as a loyal general, cunning strategist, or ruthless warlord? The Three Realms await.",
+
+  "lore": {
+    "era": "东汉末年 / 三国时代 (184-280 CE)",
+    "background": "黄巾之乱后，汉室衰微。董卓专权，群雄并起。曹操挟天子以令诸侯，刘备仁义旗号笼络天下，孙权据守江东。三足鼎立，战火不息。",
+    "tone": "英雄悲歌，乱世情怀，忠义之道，权谋之术"
+  },
+
+  "factions": [
+    {
+      "id": "wei",
+      "name": "魏",
+      "full_name": "曹魏",
+      "name_en": "Kingdom of Wei",
+      "leader": "曹操 / 曹丕",
+      "capital": "许昌 / 邺城",
+      "color": "#4A90E2",
+      "ideology": "法家·霸道·唯才是举",
+      "strength": "兵多将广，经济强盛，战略纵深",
+      "weakness": "名义上篡汉，人心不服",
+      "famous_figures": ["曹操", "曹仁", "夏侯惇", "张辽", "荀彧", "郭嘉", "司马懿"],
+      "playable": true
+    },
+    {
+      "id": "shu",
+      "name": "蜀",
+      "full_name": "蜀汉",
+      "name_en": "Kingdom of Shu Han",
+      "leader": "刘备 / 刘禅",
+      "capital": "成都",
+      "color": "#E74C3C",
+      "ideology": "儒家·仁义·匡扶汉室",
+      "strength": "人心所向，猛将如云，诸葛之智",
+      "weakness": "地偏兵少，北伐劳师",
+      "famous_figures": ["刘备", "诸葛亮", "关羽", "张飞", "赵云", "黄忠", "马超", "姜维"],
+      "playable": true
+    },
+    {
+      "id": "wu",
+      "name": "吴",
+      "full_name": "东吴",
+      "name_en": "Kingdom of Eastern Wu",
+      "leader": "孙权",
+      "capital": "建业",
+      "color": "#2ECC71",
+      "ideology": "江东世家·守成·外交为主",
+      "strength": "水军天下第一，江东地利",
+      "weakness": "偏安一隅，难图中原",
+      "famous_figures": ["孙权", "周瑜", "鲁肃", "吕蒙", "陆逊", "太史慈", "甘宁"],
+      "playable": true
+    },
+    {
+      "id": "han_remnants",
+      "name": "汉室遗民",
+      "name_en": "Han Loyalists",
+      "leader": "汉献帝（傀儡）",
+      "ideology": "匡扶汉室，恢复正统",
+      "playable": false,
+      "note": "背景阵营，影响外交事件"
+    },
+    {
+      "id": "independents",
+      "name": "割据势力",
+      "name_en": "Independent Warlords",
+      "members": ["吕布", "袁绍", "袁术", "刘表", "刘璋", "张鲁", "马腾"],
+      "playable": false,
+      "note": "早期可遭遇，后期被三国吞并"
+    }
+  ],
+
+  "roles": [
+    {
+      "id": "general",
+      "name": "武将",
+      "name_en": "General",
+      "description": "统兵征战，建功立业。马上取天下，刀锋定乾坤。",
+      "archetype": "warrior",
+      "stat_focus": ["武力", "统帅", "体力"],
+      "unique_ability": "阵前单挑，武勋积累，封侯拜将"
+    },
+    {
+      "id": "strategist",
+      "name": "谋士",
+      "name_en": "Strategist",
+      "description": "运筹帷幄，决胜千里。一计可抵百万雄兵。",
+      "archetype": "advisor",
+      "stat_focus": ["智谋", "口才", "预判"],
+      "unique_ability": "献计献策，外交斡旋，暗中布局"
+    },
+    {
+      "id": "merchant",
+      "name": "商贾",
+      "name_en": "Merchant",
+      "description": "乱世之中，粮草为王。财能通神，商路定胜负。",
+      "archetype": "trader",
+      "stat_focus": ["财富", "人脉", "消息"],
+      "unique_ability": "控制粮道，资助势力，情报买卖"
+    },
+    {
+      "id": "spy",
+      "name": "细作",
+      "name_en": "Spy",
+      "description": "潜伏敌营，窃取机密。假面之下，谁是真容？",
+      "archetype": "infiltrator",
+      "stat_focus": ["伪装", "情报", "暗杀"],
+      "unique_ability": "双面间谍，离间之计，刺杀关键人物"
+    },
+    {
+      "id": "wandering_hero",
+      "name": "游侠",
+      "name_en": "Wandering Hero",
+      "description": "不效忠于任何一方，只遵从自己的道义。",
+      "archetype": "freelancer",
+      "stat_focus": ["武力", "义气", "自由度"],
+      "unique_ability": "三国皆可投效，见义勇为，单枪匹马"
+    }
+  ],
+
+  "key_locations": [
+    {"id": "luoyang", "name": "洛阳", "desc": "汉室旧都，董卓火烧后的废墟"},
+    {"id": "xuchang", "name": "许昌", "desc": "曹操控制的新都，天子所在"},
+    {"id": "chengdu", "name": "成都", "desc": "蜀汉都城，天府之国"},
+    {"id": "jianye", "name": "建业", "desc": "东吴都城，扼守长江"},
+    {"id": "chibi", "name": "赤壁", "desc": "天下大战之地，火烧赤壁"},
+    {"id": "jingzhou", "name": "荆州", "desc": "兵家必争之地，三国交汇"},
+    {"id": "guanzhong", "name": "关中", "desc": "西北要地，马腾故地"},
+    {"id": "wuzhang_plains", "name": "五丈原", "desc": "诸葛亮最后的战场"}
+  ],
+
+  "key_events": [
+    {"day": 1, "name": "黄巾之乱平定后", "desc": "天下初定，群雄已现端倪"},
+    {"day": 10, "name": "董卓入京", "desc": "外戚宦官之争，董卓把持朝政"},
+    {"day": 25, "name": "十八路诸侯讨董", "desc": "群雄会盟，义薄云天——还是各怀私心？"},
+    {"day": 40, "name": "官渡之战", "desc": "曹操以少胜多，奠定北方霸主"},
+    {"day": 60, "name": "赤壁之战", "desc": "周瑜火攻，三国鼎立格局成型"},
+    {"day": 80, "name": "刘备入蜀", "desc": "三分天下，各自经营"},
+    {"day": 100, "name": "诸葛北伐", "desc": "出师一表真名世，千载谁堪伯仲间"}
+  ],
+
+  "stats_system": {
+    "combat_stats": ["武力 (Force)", "统帅 (Command)", "体力 (Stamina)"],
+    "civil_stats": ["智谋 (Strategy)", "政务 (Administration)", "口才 (Charisma)"],
+    "hidden_stats": ["忠义值", "野心值", "威望"],
+    "unique_mechanics": {
+      "loyalty": "忠义值影响你能招募的武将和获得的信任",
+      "ambition": "野心值过高会引起主公猜疑，但低野心者难以独当一面",
+      "prestige": "威望决定你在三国中的地位和影响力"
+    }
+  },
+
+  "endings": [
+    {"id": "unified_china", "name": "一统天下", "desc": "辅佐或成为统一中国的君主"},
+    {"id": "loyal_death", "name": "忠义殉道", "desc": "为主公战死，名垂青史"},
+    {"id": "hermit_sage", "name": "归隐山林", "desc": "看透乱世，退隐江湖"},
+    {"id": "betrayal_king", "name": "乱世枭雄", "desc": "背主自立，创建自己的势力"},
+    {"id": "tragic_hero", "name": "英雄末路", "desc": "力挽狂澜而终究失败，壮志未酬"},
+    {"id": "family_legacy", "name": "传承家业", "desc": "家族在乱世中存续，子孙绵延"},
+    {"id": "peacemaker", "name": "终结乱世", "desc": "以非战争手段促成三国和平"}
+  ],
+
+  "art_style": "chinese_ink_painting_epic",
+  "art_direction": {
+    "visual_style": "三国演义古典插画风格，结合水墨画美学",
+    "color_palette": "魏：冷蓝钢铁；蜀：赤红金黄；吴：翠绿江南",
+    "character_portraits": "古典武将画像风格，铠甲精细，神态威武",
+    "battle_scenes": "千军万马，旌旗蔽日，水墨晕染",
+    "reference": ["三国演义插图版", "《赤壁》电影美学", "光荣三国志系列"]
+  },
+
+  "language_switching": {
+    "trigger_zh_to_en": ["switch to English", "用英文", "英语模式"],
+    "trigger_en_to_zh": ["切换中文", "switch to Chinese", "中文模式"],
+    "note": "语言可随时切换，存档数据不受影响"
+  },
+
+  "created": "2026-04-07",
+  "status": "development",
+  "version": "0.1.0"
+}

@@ -1,0 +1,32 @@
+{
+  "owner": "scottcjn",
+  "slug": "beacon",
+  "displayName": "Beacon",
+  "latest": {
+    "version": "2.16.0",
+    "publishedAt": 1773012962719,
+    "commit": "https://github.com/openclaw/skills/commit/67beafcc55d4edeb65ae3ebb784584a2545f29e3"
+  },
+  "history": [
+    {
+      "version": "2.14.0",
+      "publishedAt": 1771614744706,
+      "commit": "https://github.com/openclaw/skills/commit/f7553c8b548d299d48f048a0b9a6e8e2198c23fe"
+    },
+    {
+      "version": "2.8.1",
+      "publishedAt": 1771091241191,
+      "commit": "https://github.com/openclaw/skills/commit/3fe66a2df8131eddba1953c96576e8f186a4f10e"
+    },
+    {
+      "version": "3.0.0",
+      "publishedAt": 1771021639844,
+      "commit": "https://github.com/openclaw/skills/commit/260db4c9ebb22c91b6f5da860971cd8674be586f"
+    },
+    {
+      "version": "0.1.1",
+      "publishedAt": 1770740430286,
+      "commit": "https://github.com/openclaw/skills/commit/1ce51b7e1be0cea6e0decdf930ebb265910d4bd3"
+    }
+  ]
+}

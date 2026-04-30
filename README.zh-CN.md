@@ -102,6 +102,7 @@ OpenClaw 直接基于官方 **OpenClaw** 核心构建。无需单独安装，我
 
 通过现代化的聊天体验与 AI 智能体交互。支持多会话上下文、消息历史记录、Markdown 富文本渲染，以及在多 Agent 场景下通过主输入框中的 `@agent` 直接路由到目标智能体。
 当你使用 `@agent` 选择其他智能体时，OpenClaw 会直接切换到该智能体自己的对话上下文，而不是经过默认智能体转发。各 Agent 工作区默认彼此分离，但更强的运行时隔离仍取决于 OpenClaw 的 sandbox 配置。
+Agents 页面现在内置离线 Agent 市场，可直接从随包携带的精选模板创建智能体，无需运行时拉取市场数据。
 
 ### 📡 多频道管理
 
@@ -117,7 +118,7 @@ OpenClaw 现在还内置了腾讯官方个人微信渠道插件，可直接在 C
 
 通过预构建的技能扩展 AI 智能体的能力。在集成的技能面板中浏览、安装和管理技能——无需包管理器。
 OpenClaw 还会内置预装完整的文档处理技能（`pdf`、`xlsx`、`docx`、`pptx`），在启动时自动部署到托管技能目录（默认 `~/.openclaw/skills`），并在首次安装时默认启用。额外预装技能（`find-skills`、`self-improving-agent`、`tavily-search`、`brave-web-search`）也会默认启用；若缺少必需的 API Key，OpenClaw 会在运行时给出配置错误提示。  
-Skills 页面可展示来自多个 OpenClaw 来源的技能（托管目录、workspace、额外技能目录），并显示每个技能的实际路径，便于直接打开真实安装位置。
+Skills 页面现在包含随包携带的离线技能市场，可安装精选预设；也可展示来自多个 OpenClaw 来源的技能（托管目录、workspace、额外技能目录），并显示每个技能的实际路径，便于直接打开真实安装位置。
 
 重点搜索技能所需环境变量：
 
@@ -344,7 +345,7 @@ OpenClaw 采用 **双进程 + Host API 统一接入架构**。渲染进程只调
 ```bash
 # 开发
 pnpm run init             # 安装依赖并下载 uv
-pnpm dev                  # 以热重载模式启动（若缺失会自动准备预装技能包）
+pnpm dev                  # 以热重载模式启动（若缺失会自动准备预装技能包与技能市场）
 
 # 代码质量
 pnpm lint                 # 运行 ESLint 检查
@@ -359,7 +360,7 @@ pnpm run comms:compare    # 将回放指标与基线阈值对比
 # 构建与打包
 pnpm run build:vite       # 仅构建前端
 pnpm build                # 完整生产构建（含打包资源）
-pnpm package              # 为当前平台打包（包含预装技能资源）
+pnpm package              # 为当前平台打包（包含 Agent/Skill 市场数据与预装技能资源）
 pnpm package:mac          # 为 macOS 打包
 pnpm package:win          # 为 Windows 打包
 pnpm package:linux        # 为 Linux 打包
