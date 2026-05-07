@@ -25,9 +25,9 @@
             ]
         }
     },
-    "description": "OpenClawPro - Graphical AI Assistant based on OpenClaw",
+    "description": "YourClaw Pro - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
-    "author": "OpenClawPro Team",
+    "author": "YourClaw Pro Team",
     "license": "MIT",
     "private": true,
     "scripts": {

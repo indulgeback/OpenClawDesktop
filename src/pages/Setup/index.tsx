@@ -80,7 +80,7 @@ const getDefaultSkills = (t: TFunction): DefaultSkill[] => [
   { id: 'terminal', name: t('defaultSkills.terminal.name'), description: t('defaultSkills.terminal.description') },
 ];
 
-import openclawproIcon from '@/assets/logo.svg';
+import yourclawProIcon from '@/assets/logo.svg';
 
 // NOTE: Channel types moved to Settings > Channels page
 // NOTE: Skill bundles moved to Settings > Skills page - auto-install essential skills during setup
@@ -268,7 +268,7 @@ function WelcomeContent() {
   return (
     <div data-testid="setup-welcome-step" className="text-center space-y-4">
       <div className="mb-4 flex justify-center">
-        <img src={openclawproIcon} alt="OpenClawPro" className="h-16 w-16" />
+        <img src={yourclawProIcon} alt="YourClaw Pro" className="h-16 w-16" />
       </div>
       <h2 className="text-xl font-semibold">{t('welcome.title')}</h2>
       <p className="text-muted-foreground">

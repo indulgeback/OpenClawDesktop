@@ -1,6 +1,6 @@
 {
   "title": "Настройки",
-  "subtitle": "Настройте ваш опыт работы с OpenClawPro",
+  "subtitle": "Настройте ваш опыт работы с YourClaw Pro",
   "appearance": {
     "title": "Общие",
     "description": "Настройте внешний вид",
@@ -10,7 +10,7 @@
     "system": "Системная",
     "language": "Язык",
     "launchAtStartup": "Запуск при старте системы",
-    "launchAtStartupDesc": "Автоматически запускать OpenClawPro при входе в систему"
+    "launchAtStartupDesc": "Автоматически запускать YourClaw Pro при входе в систему"
   },
   "aiProviders": {
     "title": "AI-провайдеры",
@@ -37,7 +37,7 @@
     "notRequired": "Не требуется",
     "empty": {
       "title": "Провайдеры не настроены",
-      "desc": "Добавьте AI-провайдера, чтобы начать использовать OpenClawPro",
+      "desc": "Добавьте AI-провайдера, чтобы начать использовать YourClaw Pro",
       "cta": "Добавить первого провайдера"
     },
     "dialog": {
@@ -60,7 +60,7 @@
       "protocol": "Протокол",
       "advancedConfig": "Расширенная конфигурация",
       "userAgent": "User-Agent",
-      "userAgentPlaceholder": "OpenClawPro/1.0",
+      "userAgentPlaceholder": "YourClaw Pro/1.0",
       "fallbackModels": "Резервные модели",
       "fallbackProviders": "Резервные провайдеры",
       "fallbackModelIds": "ID резервных моделей",
@@ -134,7 +134,7 @@
     "appLogs": "Журналы приложения",
     "openFolder": "Открыть папку",
     "autoStart": "Автозапуск шлюза",
-    "autoStartDesc": "Запускать шлюз при старте OpenClawPro",
+    "autoStartDesc": "Запускать шлюз при старте YourClaw Pro",
     "proxyTitle": "Прокси",
     "proxyDesc": "Направлять трафик Electron и шлюза через локальный прокси-клиент.",
     "proxyServer": "Прокси-сервер",
@@ -155,7 +155,7 @@
   },
   "updates": {
     "title": "Обновления",
-    "description": "Поддерживайте OpenClawPro в актуальном состоянии",
+    "description": "Поддерживайте YourClaw Pro в актуальном состоянии",
     "autoCheck": "Автопроверка обновлений",
     "autoCheckDesc": "Проверять обновления при запуске",
     "autoDownload": "Автообновление",
@@ -209,7 +209,7 @@
     "devMode": "Режим разработчика",
     "devModeDesc": "Показывать инструменты и ярлыки разработчика",
     "telemetry": "Анонимные данные об использовании",
-    "telemetryDesc": "Разрешить предоставление анонимных базовых данных об использовании для улучшения OpenClawPro"
+    "telemetryDesc": "Разрешить предоставление анонимных базовых данных об использовании для улучшения YourClaw Pro"
   },
   "developer": {
     "title": "Разработчик",
@@ -271,7 +271,7 @@
   },
   "about": {
     "title": "О приложении",
-    "appName": "OpenClawPro",
+    "appName": "YourClaw Pro",
     "tagline": "Графический AI-ассистент",
     "basedOn": "На базе OpenClaw",
     "version": "Версия {{version}}",
