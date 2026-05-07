@@ -1,0 +1,27 @@
+{
+  "owner": "yumyumtum",
+  "slug": "yumfu",
+  "displayName": "YumFu",
+  "latest": {
+    "version": "1.7.7",
+    "publishedAt": 1776491701205,
+    "commit": "https://github.com/openclaw/skills/commit/74eae85b6dd22fd829485b71c0a442e38546c261"
+  },
+  "history": [
+    {
+      "version": "1.7.5",
+      "publishedAt": 1776065286008,
+      "commit": "https://github.com/openclaw/skills/commit/00b65a8b01c1bcd8f9be40c11ad0ad0bb3c1946a"
+    },
+    {
+      "version": "1.5.4",
+      "publishedAt": 1775763477067,
+      "commit": "https://github.com/openclaw/skills/commit/79746c60f5cfd58e9a67c163b9088d9f4e4dd61f"
+    },
+    {
+      "version": "1.4.5",
+      "publishedAt": 1775458641106,
+      "commit": "https://github.com/openclaw/skills/commit/2b36d1b3eacdab0ddef7b5944e54cee110cf43b0"
+    }
+  ]
+}

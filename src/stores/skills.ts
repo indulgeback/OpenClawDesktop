@@ -70,11 +70,25 @@ interface SkillsState {
   fetchSkills: () => Promise<void>;
   searchSkills: (query: string) => Promise<void>;
   installSkill: (slug: string, version?: string) => Promise<void>;
+  installPresetSkill: (templateId: string, categoryId: string) => Promise<void>;
   uninstallSkill: (slug: string) => Promise<void>;
   enableSkill: (skillId: string) => Promise<void>;
   disableSkill: (skillId: string) => Promise<void>;
   setSkills: (skills: Skill[]) => void;
   updateSkill: (skillId: string, updates: Partial<Skill>) => void;
+}
+
+function resolveSkillSourceKind(source: string | undefined, bundled: boolean | undefined): Skill['sourceKind'] {
+  if (bundled) return 'bundled';
+  if (source === 'openclawpro-preinstalled' || source === 'openclawpro-market-preset') return 'market-preset';
+  return 'clawhub';
+}
+
+function shouldPreferInstalledSource(existingSource: string | undefined, installedSource: string | undefined): boolean {
+  if (!installedSource) return false;
+  if (!existingSource) return true;
+  if (installedSource === 'openclawpro-market-preset' || installedSource === 'openclawpro-preinstalled') return true;
+  return existingSource === 'openclaw-managed' && installedSource !== existingSource;
 }
 
 export const useSkillsStore = create<SkillsState>((set, get) => ({
@@ -127,6 +141,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
             isCore: s.bundled && s.always,
             isBundled: s.bundled,
             source: s.source,
+            sourceKind: resolveSkillSourceKind(s.source, s.bundled),
             baseDir: s.baseDir,
             filePath: s.filePath,
           };
@@ -144,8 +159,9 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
             if (!existing.baseDir && cs.baseDir) {
               existing.baseDir = cs.baseDir;
             }
-            if (!existing.source && cs.source) {
+            if (shouldPreferInstalledSource(existing.source, cs.source)) {
               existing.source = cs.source;
+              existing.sourceKind = resolveSkillSourceKind(cs.source, existing.isBundled);
             }
             return;
           }
@@ -163,6 +179,7 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
             isCore: false,
             isBundled: false,
             source: cs.source || 'openclaw-managed',
+            sourceKind: resolveSkillSourceKind(cs.source || 'openclaw-managed', false),
             baseDir: cs.baseDir,
           });
         });
@@ -226,6 +243,29 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
       set((state) => {
         const newInstalling = { ...state.installing };
         delete newInstalling[slug];
+        return { installing: newInstalling };
+      });
+    }
+  },
+
+  installPresetSkill: async (templateId: string, categoryId: string) => {
+    set((state) => ({ installing: { ...state.installing, [templateId]: true } }));
+    try {
+      const result = await hostApiFetch<{ success: boolean; error?: string }>('/api/skills/presets/install', {
+        method: 'POST',
+        body: JSON.stringify({ templateId, categoryId }),
+      });
+      if (!result.success) {
+        throw new Error(result.error || 'Install failed');
+      }
+      await get().fetchSkills();
+    } catch (error) {
+      console.error('Preset install error:', error);
+      throw error;
+    } finally {
+      set((state) => {
+        const newInstalling = { ...state.installing };
+        delete newInstalling[templateId];
         return { installing: newInstalling };
       });
     }

@@ -11,7 +11,10 @@
     "filter": {
         "all": "全部 ({{count}})",
         "builtIn": "内置 ({{count}})",
-        "marketplace": "市场 ({{count}})"
+        "marketplace": "市场 ({{count}})",
+        "builtInMarket": "市场技能 ({{count}})",
+        "bundled": "打包内置 ({{count}})",
+        "clawhub": "ClawHub ({{count}})"
     },
     "search": "搜索技能...",
     "searchMarketplace": "搜索市场...",
@@ -19,7 +22,8 @@
     "actions": {
         "enableVisible": "批量启用可见项",
         "disableVisible": "批量禁用可见项",
-        "installSkill": "安装技能"
+        "installSkill": "安装技能",
+        "browseBuiltInMarket": "内置市场"
     },
     "noSkills": "未找到技能",
     "noSkillsSearch": "尝试不同的搜索词",
@@ -78,7 +82,9 @@
             "extra": "额外目录",
             "agentsPersonal": "个人 .agents",
             "agentsProject": "项目 .agents",
-            "unknown": "未知来源"
+            "unknown": "未知来源",
+            "marketPreset": "市场技能",
+            "clawhub": "从 ClawHub 安装"
         }
     },
     "toast": {
@@ -106,7 +112,8 @@
         "noBatchDisableTargets": "当前可见技能都已禁用。",
         "batchEnabled": "已启用 {{count}} 个技能。",
         "batchDisabled": "已禁用 {{count}} 个技能。",
-        "batchPartial": "已更新 {{success}} / {{total}} 个技能，部分操作失败。"
+        "batchPartial": "已更新 {{success}} / {{total}} 个技能，部分操作失败。",
+        "presetInstalled": "{{name}} 已安装并启用"
     },
     "marketplace": {
         "title": "市场",
@@ -120,5 +127,55 @@
         "noResults": "未找到匹配的技能。",
         "emptyPrompt": "搜索新技能以扩展您的能力。",
         "searchError": "ClawHub 搜索失败。请检查您的连接或安装。"
+    },
+    "presetMarket": {
+        "title": "内置技能市场",
+        "subtitle": "安装随应用打包的预制技能，无需从 ClawHub 拉取。",
+        "search": "搜索内置技能...",
+        "install": "安装",
+        "installed": "已安装",
+        "empty": "未找到内置技能。"
+    },
+    "scene": {
+        "market": "市场",
+        "manage": "管理"
+    },
+    "market": {
+        "sourceNotice": "精选内置技能来自离线快照。需要更多技能？可在管理页从 ClawHub 添加。",
+        "sourceBadge": "内置",
+        "add": "添加",
+        "manage": "管理",
+        "categoryCount": "{{count}} 个预设",
+        "catalog": "目录"
+    },
+    "categories": {
+        "git-and-github": "Git 与 GitHub",
+        "coding-agents-and-ides": "编码 Agent 与 IDE",
+        "browser-and-automation": "浏览器与自动化",
+        "web-and-frontend-development": "Web 与前端开发",
+        "devops-and-cloud": "DevOps 与云",
+        "image-and-video-generation": "图像与视频生成",
+        "apple-apps-and-services": "Apple 应用与服务",
+        "search-and-research": "搜索与研究",
+        "clawdbot-tools": "Clawdbot 工具",
+        "cli-utilities": "CLI 工具",
+        "marketing-and-sales": "营销与销售",
+        "productivity-and-tasks": "效率与任务",
+        "ai-and-llms": "AI 与大模型",
+        "media-and-streaming": "媒体与流媒体",
+        "notes-and-pkm": "笔记与知识管理",
+        "ios-and-macos-development": "iOS 与 macOS 开发",
+        "transportation": "交通",
+        "personal-development": "个人成长",
+        "health-and-fitness": "健康与健身",
+        "communication": "沟通",
+        "speech-and-transcription": "语音与转写",
+        "smart-home-and-iot": "智能家居与 IoT",
+        "shopping-and-e-commerce": "购物与电商",
+        "calendar-and-scheduling": "日历与排程",
+        "pdf-and-documents": "PDF 与文档",
+        "self-hosted-and-automation": "自托管与自动化",
+        "security-and-passwords": "安全与密码",
+        "gaming": "游戏"
     }
 }

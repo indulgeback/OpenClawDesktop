@@ -51,10 +51,20 @@ interface PreinstalledLockFile {
 }
 
 interface PreinstalledMarker {
-    source: 'openclawpro-preinstalled';
+    source: 'openclawpro-preinstalled' | 'openclawpro-market-preset';
     slug: string;
     version: string;
     installedAt: string;
+    categoryId?: string;
+}
+
+interface SkillMarketSpec {
+    slug: string;
+    version?: string;
+}
+
+interface SkillMarketManifest {
+    skills?: SkillMarketSpec[];
 }
 
 async function fileExists(p: string): Promise<boolean> {
@@ -290,6 +300,62 @@ async function readPreinstalledLockVersions(sourceRoot: string): Promise<Map<str
     }
 }
 
+async function readSkillsMarketManifest(): Promise<SkillMarketSpec[]> {
+    const candidates = [
+        join(getResourcesDir(), 'skills', 'market-manifest.json'),
+        join(process.cwd(), 'resources', 'skills', 'market-manifest.json'),
+    ];
+
+    const manifestPath = candidates.find((p) => existsSync(p));
+    if (!manifestPath) {
+        return [];
+    }
+
+    try {
+        const raw = await readFile(manifestPath, 'utf-8');
+        const parsed = JSON.parse(raw) as SkillMarketManifest;
+        if (!Array.isArray(parsed.skills)) {
+            return [];
+        }
+        return parsed.skills.filter((s): s is SkillMarketSpec => Boolean(s?.slug));
+    } catch (error) {
+        logger.warn('Failed to read skills market manifest:', error);
+        return [];
+    }
+}
+
+function resolveSkillsMarketSourceRoot(): string | null {
+    const candidates = [
+        join(getResourcesDir(), 'skills-market-presets'),
+        join(process.cwd(), 'resources', 'skills-market-presets'),
+    ];
+
+    return candidates.find((dir) => existsSync(dir)) || null;
+}
+
+async function readSkillsMarketLockVersions(sourceRoot: string): Promise<Map<string, string>> {
+    const lockPath = join(sourceRoot, '.skills-market-lock.json');
+    if (!existsSync(lockPath)) {
+        return new Map();
+    }
+    try {
+        const raw = await readFile(lockPath, 'utf-8');
+        const parsed = JSON.parse(raw) as PreinstalledLockFile;
+        const versions = new Map<string, string>();
+        for (const entry of parsed.skills || []) {
+            const slug = entry.slug?.trim();
+            const version = entry.version?.trim();
+            if (slug && version) {
+                versions.set(slug, version);
+            }
+        }
+        return versions;
+    } catch (error) {
+        logger.warn('Failed to read skills market lock file:', error);
+        return new Map();
+    }
+}
+
 async function tryReadMarker(markerPath: string): Promise<PreinstalledMarker | null> {
     if (!existsSync(markerPath)) {
         return null;
@@ -304,6 +370,61 @@ async function tryReadMarker(markerPath: string): Promise<PreinstalledMarker | n
     } catch {
         return null;
     }
+}
+
+async function installSkillFromSource(
+    slug: string,
+    source: PreinstalledMarker['source'],
+    version: string,
+    sourceRoot: string,
+    categoryId?: string,
+): Promise<void> {
+    const sourceDir = join(sourceRoot, slug);
+    const sourceManifest = join(sourceDir, 'SKILL.md');
+    if (!existsSync(sourceManifest)) {
+        throw new Error(`Skill source missing SKILL.md: ${sourceDir}`);
+    }
+
+    const targetRoot = join(homedir(), '.openclaw', 'skills');
+    const targetDir = join(targetRoot, slug);
+    const targetManifest = join(targetDir, 'SKILL.md');
+    const markerPath = join(targetDir, PREINSTALLED_MARKER_NAME);
+    const marker = await tryReadMarker(markerPath);
+
+    if (existsSync(targetManifest) && !marker) {
+        throw new Error(`Skill "${slug}" already exists and is not managed by OpenClawPro`);
+    }
+
+    await mkdir(targetDir, { recursive: true });
+    await cpAsyncSafe(sourceDir, targetDir);
+    const markerPayload: PreinstalledMarker = {
+        source,
+        slug,
+        version,
+        installedAt: new Date().toISOString(),
+        ...(categoryId ? { categoryId } : {}),
+    };
+    await writeFile(markerPath, `${JSON.stringify(markerPayload, null, 2)}\n`, 'utf-8');
+    await setSkillsEnabled([slug], true);
+}
+
+export async function installSkillPreset(templateId: string, categoryId: string): Promise<void> {
+    const skills = await readSkillsMarketManifest();
+    const spec = skills.find((entry) => entry.slug === templateId);
+    if (!spec) {
+        throw new Error(`Unknown preset skill: ${templateId}`);
+    }
+
+    const sourceRoot = resolveSkillsMarketSourceRoot();
+    if (!sourceRoot) {
+        throw new Error('Skills market source root not found');
+    }
+    const lockVersions = await readSkillsMarketLockVersions(sourceRoot);
+    const version = lockVersions.get(templateId)
+        || (spec.version || 'bundled').trim()
+        || 'bundled';
+
+    await installSkillFromSource(templateId, 'openclawpro-market-preset', version, sourceRoot, categoryId);
 }
 
 /**

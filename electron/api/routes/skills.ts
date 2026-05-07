@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { getAllSkillConfigs, updateSkillConfig } from '../../utils/skill-config';
+import { getAllSkillConfigs, installSkillPreset, updateSkillConfig } from '../../utils/skill-config';
 import { collectQuickAccessSkills, filterEnabledQuickAccessSkills, type QuickAccessRuntimeSkillStatus } from '../../utils/skill-quick-access';
 import type { ClawHubInstallParams, ClawHubSearchParams, ClawHubUninstallParams } from '../../gateway/clawhub';
 import type { HostApiContext } from '../context';
@@ -27,6 +27,17 @@ export async function handleSkillRoutes(
         apiKey: body.apiKey,
         env: body.env,
       }));
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/skills/presets/install' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody<{ templateId: string; categoryId: string }>(req);
+      await installSkillPreset(body.templateId, body.categoryId);
+      sendJson(res, 200, { success: true });
     } catch (error) {
       sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }

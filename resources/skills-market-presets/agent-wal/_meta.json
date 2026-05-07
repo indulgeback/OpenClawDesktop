@@ -1,0 +1,17 @@
+{
+  "owner": "bowen31337",
+  "slug": "agent-wal",
+  "displayName": "Agent Wal",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1771038589699,
+    "commit": "https://github.com/openclaw/skills/commit/76f075706c88c754f1058211a06920b4d9cbf7a9"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1770791402222,
+      "commit": "https://github.com/openclaw/skills/commit/5127415198336307cc2717979d19181e86306b30"
+    }
+  ]
+}

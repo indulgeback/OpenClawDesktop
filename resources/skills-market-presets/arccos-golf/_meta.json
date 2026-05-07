@@ -1,0 +1,22 @@
+{
+  "owner": "pfrederiksen",
+  "slug": "arccos-golf",
+  "displayName": "Arccos Golf Performance Analyzer",
+  "latest": {
+    "version": "2.0.2",
+    "publishedAt": 1773098556468,
+    "commit": "https://github.com/openclaw/skills/commit/ec249c9fcc079d867cc0157d0e6dd829916070b9"
+  },
+  "history": [
+    {
+      "version": "2.0.1",
+      "publishedAt": 1773098429299,
+      "commit": "https://github.com/openclaw/skills/commit/d69e24421f471eaae250e86172faa83019c38ba9"
+    },
+    {
+      "version": "1.3.0",
+      "publishedAt": 1771888021338,
+      "commit": "https://github.com/openclaw/skills/commit/c06399cd79a38eaf561e8c1a199477a18a7e443e"
+    }
+  ]
+}

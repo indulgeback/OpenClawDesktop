@@ -1,7 +1,7 @@
 {
     "steps": {
         "welcome": {
-            "title": "Welcome to OpenClawPro",
+            "title": "Welcome to YourClaw Pro",
             "description": "Your AI assistant is ready to be configured"
         },
         "runtime": {
@@ -22,12 +22,12 @@
         },
         "complete": {
             "title": "All Set!",
-            "description": "OpenClawPro is ready to use"
+            "description": "YourClaw Pro is ready to use"
         }
     },
     "welcome": {
-        "title": "Welcome to OpenClawPro",
-        "description": "OpenClawPro is a graphical interface for OpenClaw, making it easy to use AI assistants across your favorite messaging platforms.",
+        "title": "Welcome to YourClaw Pro",
+        "description": "YourClaw Pro is a graphical interface for OpenClaw, making it easy to use AI assistants across your favorite messaging platforms.",
         "features": {
             "noCommand": "Zero command-line required",
             "modernUI": "Modern, beautiful interface",
@@ -113,7 +113,7 @@
     },
     "complete": {
         "title": "Setup Complete!",
-        "subtitle": "OpenClawPro is configured and ready to use. You can now start chatting with your AI assistant.",
+        "subtitle": "YourClaw Pro is configured and ready to use. You can now start chatting with your AI assistant.",
         "provider": "AI Provider",
         "components": "Components",
         "gateway": "Gateway",

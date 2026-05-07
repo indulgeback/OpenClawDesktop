@@ -1,0 +1,17 @@
+{
+  "owner": "tkuehnl",
+  "slug": "agentic-devops",
+  "displayName": "agentic-devops",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1771717029366,
+    "commit": "https://github.com/openclaw/skills/commit/ea1e2579038e87e842063ce2c2758d9e1bc5e4cf"
+  },
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1771538644566,
+      "commit": "https://github.com/openclaw/skills/commit/713ed70e32d32607ba194adca9e547d7507681b4"
+    }
+  ]
+}

@@ -32,8 +32,8 @@ const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
       delete flat['HTTP-Referer'];
       delete flat['x-title'];
       delete flat['X-Title'];
-      flat['HTTP-Referer'] = 'https://claw-x.com';
-      flat['X-Title'] = 'OpenClawPro';
+      flat['HTTP-Referer'] = 'https://yourclawpro.com/';
+      flat['X-Title'] = 'YourClaw Pro';
       init.headers = flat;
     }
     return _f.call(globalThis, input, init);
@@ -123,13 +123,13 @@ export async function launchGatewayProcess(options: {
   // The OpenClaw gateway advertises `_openclaw-gw._tcp.local` on every
   // active network interface using a hardcoded `openclaw.local` hostname,
   // which causes:
-  //   - cross-machine name collisions when multiple OpenClaw/OpenClawPro peers
+  //   - cross-machine name collisions when multiple OpenClaw/YourClaw Pro peers
   //     share a LAN (each falls back to "<name> (OpenClaw) (2)")
   //   - self-collisions on multi-homed hosts (Wi-Fi + Tailscale + utun ...)
-  //   - "ghost" record collisions after an unclean OpenClawPro exit, because
+  //   - "ghost" record collisions after an unclean YourClaw Pro exit, because
   //     SIGKILL prevents ciao from emitting the mDNS goodbye record.
   //
-  // OpenClawPro has no UI for LAN gateway discovery today, so the advertiser is
+  // YourClaw Pro has no UI for LAN gateway discovery today, so the advertiser is
   // pure log noise.  `OPENCLAW_DISABLE_BONJOUR=1` short-circuits
   // `startGatewayBonjourAdvertiser()` (openclaw `src/infra/bonjour.ts`,
   // `isDisabledByEnv()`).  Set after the `forkEnv` spread so any

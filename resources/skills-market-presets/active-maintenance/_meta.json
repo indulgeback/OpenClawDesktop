@@ -1,0 +1,11 @@
+{
+  "owner": "xiaowenzhou",
+  "slug": "active-maintenance",
+  "displayName": "Active Maintenance",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1771689193797,
+    "commit": "https://github.com/openclaw/skills/commit/9de446504804d2ea97cb00f2709b271044794c9f"
+  },
+  "history": []
+}

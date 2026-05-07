@@ -11,7 +11,10 @@
     "filter": {
         "all": "All ({{count}})",
         "builtIn": "Built-in ({{count}})",
-        "marketplace": "Marketplace ({{count}})"
+        "marketplace": "Marketplace ({{count}})",
+        "builtInMarket": "Market Skills ({{count}})",
+        "bundled": "Bundled ({{count}})",
+        "clawhub": "ClawHub ({{count}})"
     },
     "search": "Search skills...",
     "searchMarketplace": "Search marketplace...",
@@ -19,7 +22,8 @@
     "actions": {
         "enableVisible": "Enable Visible",
         "disableVisible": "Disable Visible",
-        "installSkill": "Install Skills"
+        "installSkill": "Install Skills",
+        "browseBuiltInMarket": "Built-in Market"
     },
     "noSkills": "No skills found",
     "noSkillsSearch": "Try a different search term",
@@ -78,7 +82,9 @@
             "extra": "Extra dirs",
             "agentsPersonal": "Personal .agents",
             "agentsProject": "Project .agents",
-            "unknown": "Unknown source"
+            "unknown": "Unknown source",
+            "marketPreset": "Market Skills",
+            "clawhub": "Installed from ClawHub"
         }
     },
     "toast": {
@@ -106,7 +112,8 @@
         "noBatchDisableTargets": "All visible skills are already disabled.",
         "batchEnabled": "{{count}} skills enabled.",
         "batchDisabled": "{{count}} skills disabled.",
-        "batchPartial": "Updated {{success}} / {{total}} skills. Some items failed."
+        "batchPartial": "Updated {{success}} / {{total}} skills. Some items failed.",
+        "presetInstalled": "{{name}} installed and enabled"
     },
     "marketplace": {
         "title": "Marketplace",
@@ -120,5 +127,55 @@
         "noResults": "No skills found matching your search.",
         "emptyPrompt": "Search for new skills to expand your capabilities.",
         "searchError": "ClawHub search failed. Check your connection or installation."
+    },
+    "presetMarket": {
+        "title": "Built-in Skill Market",
+        "subtitle": "Install bundled preset skills without fetching from ClawHub.",
+        "search": "Search bundled skills...",
+        "install": "Install",
+        "installed": "Installed",
+        "empty": "No bundled skills found."
+    },
+    "scene": {
+        "market": "Market",
+        "manage": "Manage"
+    },
+    "market": {
+        "sourceNotice": "Curated built-in skill presets come from an offline snapshot. Need more? Add extra skills from ClawHub in Manage.",
+        "sourceBadge": "Built-in",
+        "add": "Add",
+        "manage": "Manage",
+        "categoryCount": "{{count}} presets",
+        "catalog": "Catalog"
+    },
+    "categories": {
+        "git-and-github": "Git & GitHub",
+        "coding-agents-and-ides": "Coding Agents & IDEs",
+        "browser-and-automation": "Browser & Automation",
+        "web-and-frontend-development": "Web & Frontend Development",
+        "devops-and-cloud": "DevOps & Cloud",
+        "image-and-video-generation": "Image & Video Generation",
+        "apple-apps-and-services": "Apple Apps & Services",
+        "search-and-research": "Search & Research",
+        "clawdbot-tools": "Clawdbot Tools",
+        "cli-utilities": "CLI Utilities",
+        "marketing-and-sales": "Marketing & Sales",
+        "productivity-and-tasks": "Productivity & Tasks",
+        "ai-and-llms": "AI & LLMs",
+        "media-and-streaming": "Media & Streaming",
+        "notes-and-pkm": "Notes & PKM",
+        "ios-and-macos-development": "iOS & macOS Development",
+        "transportation": "Transportation",
+        "personal-development": "Personal Development",
+        "health-and-fitness": "Health & Fitness",
+        "communication": "Communication",
+        "speech-and-transcription": "Speech & Transcription",
+        "smart-home-and-iot": "Smart Home & IoT",
+        "shopping-and-e-commerce": "Shopping & E-commerce",
+        "calendar-and-scheduling": "Calendar & Scheduling",
+        "pdf-and-documents": "PDF & Documents",
+        "self-hosted-and-automation": "Self-Hosted & Automation",
+        "security-and-passwords": "Security & Passwords",
+        "gaming": "Gaming"
     }
 }

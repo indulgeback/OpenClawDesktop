@@ -1,0 +1,32 @@
+{
+  "owner": "odrobnik",
+  "slug": "announcer",
+  "displayName": "Announcer",
+  "latest": {
+    "version": "1.2.3",
+    "publishedAt": 1772570451505,
+    "commit": "https://github.com/openclaw/skills/commit/34cced91dcd7dd566db26c9939b3e4508ed72cf3"
+  },
+  "history": [
+    {
+      "version": "1.2.1",
+      "publishedAt": 1770964133771,
+      "commit": "https://github.com/openclaw/skills/commit/4c525a573e687c6201b67fe63e7ce660e8534271"
+    },
+    {
+      "version": "1.1.3",
+      "publishedAt": 1770881635570,
+      "commit": "https://github.com/openclaw/skills/commit/2438a8d8ba34240484cf2a0399b9c55b66dbfc6e"
+    },
+    {
+      "version": "1.1.2",
+      "publishedAt": 1770841440269,
+      "commit": "https://github.com/openclaw/skills/commit/cd0d0a9a2679151cc22fecbe3c5973fc8444bb30"
+    },
+    {
+      "version": "1.1.1",
+      "publishedAt": 1770146296371,
+      "commit": "https://github.com/clawdbot/skills/commit/db548cee3583f0ed1955cc390621f3f53e970928"
+    }
+  ]
+}

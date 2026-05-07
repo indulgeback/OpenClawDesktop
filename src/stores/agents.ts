@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { hostApiFetch } from '@/lib/host-api';
 import type { ChannelType } from '@/types/channel';
-import type { AgentSummary, AgentsSnapshot } from '@/types/agent';
+import type { AgentSummary, AgentsSnapshot, AgentTemplateDetail } from '@/types/agent';
 
 interface AgentsState {
   agents: AgentSummary[];
@@ -14,6 +14,7 @@ interface AgentsState {
   error: string | null;
   fetchAgents: () => Promise<void>;
   createAgent: (name: string, options?: { inheritWorkspace?: boolean }) => Promise<void>;
+  createAgentFromTemplate: (template: AgentTemplateDetail) => Promise<void>;
   updateAgent: (agentId: string, name: string) => Promise<void>;
   updateAgentModel: (agentId: string, modelRef: string | null) => Promise<void>;
   deleteAgent: (agentId: string) => Promise<void>;
@@ -62,6 +63,29 @@ export const useAgentsStore = create<AgentsState>((set) => ({
       const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>('/api/agents', {
         method: 'POST',
         body: JSON.stringify({ name, inheritWorkspace: options?.inheritWorkspace }),
+      });
+      set(applySnapshot(snapshot));
+    } catch (error) {
+      set({ error: String(error) });
+      throw error;
+    }
+  },
+
+  createAgentFromTemplate: async (template: AgentTemplateDetail) => {
+    set({ error: null });
+    try {
+      const snapshot = await hostApiFetch<AgentsSnapshot & { success?: boolean }>('/api/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: template.name,
+          agentId: template.templateId,
+          templateId: template.templateId,
+          workspaceFiles: template.files,
+          sourceRepo: template.sourceRepo,
+          sourceCommit: template.sourceCommit,
+          sourcePath: template.sourcePath,
+          categoryId: template.categoryId,
+        }),
       });
       set(applySnapshot(snapshot));
     } catch (error) {

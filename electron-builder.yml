@@ -1,6 +1,6 @@
 appId: app.openclawpro.desktop
-productName: OpenClawPro
-copyright: Copyright © 2026 OpenClawPro
+productName: YourClaw Pro
+copyright: Copyright © 2026 YourClaw Pro
 compression: maximum
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 
@@ -29,6 +29,8 @@ extraResources:
   # Pre-bundled third-party skills (full directories, not only SKILL.md)
   - from: build/preinstalled-skills/
     to: resources/preinstalled-skills/
+  - from: resources/skills-market-presets/
+    to: resources/skills-market-presets/
   # NOTE: OpenClaw plugin mirrors (dingtalk, etc.) are bundled by the
   # afterPack hook (after-pack.cjs) directly from node_modules, so they
   # don't need an extraResources entry here.
@@ -86,8 +88,8 @@ mac:
   entitlementsInherit: entitlements.mac.plist
   notarize: true
   extendInfo:
-    NSMicrophoneUsageDescription: OpenClawPro requires microphone access for voice features
-    NSCameraUsageDescription: OpenClawPro requires camera access for video features
+    NSMicrophoneUsageDescription: YourClaw Pro requires microphone access for voice features
+    NSCameraUsageDescription: YourClaw Pro requires camera access for video features
 
 dmg:
   # Explicit volume size prevents dmg-builder@1.2.0 auto-calculation from
@@ -133,8 +135,8 @@ nsis:
   differentialPackage: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: OpenClawPro
-  uninstallDisplayName: OpenClawPro
+  shortcutName: YourClaw Pro
+  uninstallDisplayName: YourClaw Pro
   license: LICENSE
   include: scripts/installer.nsh
   installerIcon: resources/icons/icon.ico
@@ -161,13 +163,13 @@ linux:
       arch:
         - x64
   category: Utility
-  maintainer: OpenClawPro Team <public@valuecell.ai>
-  vendor: OpenClawPro
+  maintainer: YourClaw Pro Team <public@valuecell.ai>
+  vendor: YourClaw Pro
   synopsis: AI Assistant powered by OpenClaw
-  description: OpenClawPro is a graphical AI assistant application that integrates with OpenClaw Gateway to provide intelligent automation and assistance across multiple messaging platforms.
+  description: YourClaw Pro is a graphical AI assistant application that integrates with OpenClaw Gateway to provide intelligent automation and assistance across multiple messaging platforms.
   desktop:
     entry:
-      Name: OpenClawPro
+      Name: YourClaw Pro
       Comment: AI Assistant powered by OpenClaw
       Categories: Utility;Network;
       Keywords: ai;assistant;automation;chat;

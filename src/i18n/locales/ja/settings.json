@@ -1,6 +1,6 @@
 {
   "title": "設定",
-  "subtitle": "OpenClawPro の体験をカスタマイズ",
+  "subtitle": "YourClaw Pro の体験をカスタマイズ",
   "appearance": {
     "title": "通用",
     "description": "外観とスタイルをカスタマイズ",
@@ -10,7 +10,7 @@
     "system": "システム",
     "language": "言語",
     "launchAtStartup": "システム起動時に自動起動",
-    "launchAtStartupDesc": "ログイン時に OpenClawPro を自動的に起動します"
+    "launchAtStartupDesc": "ログイン時に YourClaw Pro を自動的に起動します"
   },
   "aiProviders": {
     "title": "AI プロバイダー",
@@ -37,7 +37,7 @@
     "notRequired": "不要",
     "empty": {
       "title": "プロバイダーが構成されていません",
-      "desc": "OpenClawPro の使用を開始するには AI プロバイダーを追加してください",
+      "desc": "YourClaw Pro の使用を開始するには AI プロバイダーを追加してください",
       "cta": "最初のプロバイダーを追加"
     },
     "dialog": {
@@ -60,7 +60,7 @@
       "protocol": "プロトコル",
       "advancedConfig": "詳細設定",
       "userAgent": "User-Agent",
-      "userAgentPlaceholder": "OpenClawPro/1.0",
+      "userAgentPlaceholder": "YourClaw Pro/1.0",
       "fallbackModels": "フォールバックモデル",
       "fallbackProviders": "別プロバイダーへのフォールバック",
       "fallbackModelIds": "同一プロバイダーのフォールバックモデル ID",
@@ -133,7 +133,7 @@
     "appLogs": "アプリケーションログ",
     "openFolder": "フォルダーを開く",
     "autoStart": "ゲートウェイ自動起動",
-    "autoStartDesc": "OpenClawPro 起動時にゲートウェイを自動起動",
+    "autoStartDesc": "YourClaw Pro 起動時にゲートウェイを自動起動",
     "proxyTitle": "プロキシ",
     "proxyDesc": "Electron と Gateway の通信をローカルプロキシ経由にします。",
     "proxyServer": "プロキシサーバー",
@@ -154,7 +154,7 @@
   },
   "updates": {
     "title": "アップデート",
-    "description": "OpenClawPro を最新に保つ",
+    "description": "YourClaw Pro を最新に保つ",
     "autoCheck": "自動更新チェック",
     "autoCheckDesc": "起動時に更新を確認",
     "autoDownload": "自動アップデート",
@@ -268,10 +268,10 @@
   },
   "about": {
     "title": "バージョン情報",
-    "appName": "OpenClawPro",
+    "appName": "YourClaw Pro",
     "tagline": "グラフィカル AI アシスタント",
     "basedOn": "OpenClaw ベース",
-    "version": "バージョン {{version}}",
+    "version": "Pro バージョン {{version}}",
     "docs": "公式サイト",
     "github": "GitHub",
     "faq": "よくある質問"

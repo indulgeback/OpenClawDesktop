@@ -1,6 +1,7 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { Agents } from '../../src/pages/Agents/index';
 
 const hostApiFetchMock = vi.fn();
@@ -8,7 +9,9 @@ const subscribeHostEventMock = vi.fn();
 const fetchAgentsMock = vi.fn();
 const updateAgentMock = vi.fn();
 const updateAgentModelMock = vi.fn();
+const createAgentFromTemplateMock = vi.fn();
 const refreshProviderSnapshotMock = vi.fn();
+const switchSessionMock = vi.fn();
 
 const { gatewayState, agentsState, providersState } = vi.hoisted(() => ({
   gatewayState: {
@@ -38,6 +41,7 @@ vi.mock('@/stores/agents', () => ({
     updateAgent: typeof updateAgentMock;
     updateAgentModel: typeof updateAgentModelMock;
     createAgent: ReturnType<typeof vi.fn>;
+    createAgentFromTemplate: typeof createAgentFromTemplateMock;
     deleteAgent: ReturnType<typeof vi.fn>;
   }) => unknown) => {
     const state = {
@@ -46,10 +50,17 @@ vi.mock('@/stores/agents', () => ({
       updateAgent: updateAgentMock,
       updateAgentModel: updateAgentModelMock,
       createAgent: vi.fn(),
+      createAgentFromTemplate: createAgentFromTemplateMock,
       deleteAgent: vi.fn(),
     };
     return typeof selector === 'function' ? selector(state) : state;
   },
+}));
+
+vi.mock('@/stores/chat', () => ({
+  useChatStore: (selector: (state: { switchSession: typeof switchSessionMock }) => unknown) => selector({
+    switchSession: switchSessionMock,
+  }),
 }));
 
 vi.mock('@/stores/providers', () => ({
@@ -70,6 +81,18 @@ vi.mock('@/lib/host-api', () => ({
 
 vi.mock('@/lib/host-events', () => ({
   subscribeHostEvent: (...args: unknown[]) => subscribeHostEventMock(...args),
+}));
+
+vi.mock('@/lib/agent-market', () => ({
+  getAgentMarketCatalog: () => ({
+    sourceRepo: 'test',
+    sourceCommit: 'test',
+    sourceCommitShort: 'test',
+    generatedAt: '2026-01-01T00:00:00.000Z',
+    categories: [{ id: 'engineering', name: 'Engineering', count: 0 }],
+    templates: [],
+  }),
+  loadAgentTemplateDetail: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -99,12 +122,22 @@ describe('Agents page status refresh', () => {
     fetchAgentsMock.mockResolvedValue(undefined);
     updateAgentMock.mockResolvedValue(undefined);
     updateAgentModelMock.mockResolvedValue(undefined);
+    createAgentFromTemplateMock.mockResolvedValue(undefined);
     refreshProviderSnapshotMock.mockResolvedValue(undefined);
+    switchSessionMock.mockClear();
     hostApiFetchMock.mockResolvedValue({
       success: true,
       channels: [],
     });
   });
+
+  function renderAgents() {
+    return render(
+      <MemoryRouter>
+        <Agents />
+      </MemoryRouter>,
+    );
+  }
 
   it('refetches channel accounts when gateway channel-status events arrive', async () => {
     let channelStatusHandler: (() => void) | undefined;
@@ -115,7 +148,7 @@ describe('Agents page status refresh', () => {
       return vi.fn();
     });
 
-    render(<Agents />);
+    renderAgents();
 
     await waitFor(() => {
       expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
@@ -136,7 +169,11 @@ describe('Agents page status refresh', () => {
   it('refetches channel accounts when the gateway transitions to running after mount', async () => {
     gatewayState.status = { state: 'starting', port: 18789 };
 
-    const { rerender } = render(<Agents />);
+    const { rerender } = render(
+      <MemoryRouter>
+        <Agents />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
@@ -145,7 +182,11 @@ describe('Agents page status refresh', () => {
 
     gatewayState.status = { state: 'running', port: 18789 };
     await act(async () => {
-      rerender(<Agents />);
+      rerender(
+        <MemoryRouter>
+          <Agents />
+        </MemoryRouter>,
+      );
     });
 
     await waitFor(() => {
@@ -189,13 +230,14 @@ describe('Agents page status refresh', () => {
     ];
     providersState.defaultAccountId = 'openrouter-default';
 
-    render(<Agents />);
+    renderAgents();
 
     await waitFor(() => {
       expect(fetchAgentsMock).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.click(screen.getByTitle('settings'));
+    fireEvent.click(screen.getByTestId('agents-scene-manage'));
+    fireEvent.click(screen.getByTestId('agent-settings-main'));
     fireEvent.click(screen.getByText('settingsDialog.modelLabel').closest('button') as HTMLButtonElement);
 
     const useDefaultButton = await screen.findByRole('button', { name: 'settingsDialog.useDefaultModel' });
@@ -232,13 +274,22 @@ describe('Agents page status refresh', () => {
       },
     ];
 
-    const { rerender } = render(<Agents />);
+    const { rerender } = render(
+      <MemoryRouter>
+        <Agents />
+      </MemoryRouter>,
+    );
 
+    fireEvent.click(screen.getByTestId('agents-scene-manage'));
     expect(await screen.findByText('Main')).toBeInTheDocument();
 
     agentsState.loading = true;
     await act(async () => {
-      rerender(<Agents />);
+      rerender(
+        <MemoryRouter>
+          <Agents />
+        </MemoryRouter>,
+      );
     });
 
     expect(screen.getByText('Main')).toBeInTheDocument();
@@ -251,7 +302,11 @@ describe('Agents page status refresh', () => {
     refreshProviderSnapshotMock.mockImplementation(() => new Promise(() => {}));
     hostApiFetchMock.mockImplementation(() => new Promise(() => {}));
 
-    const { container } = render(<Agents />);
+    const { container } = render(
+      <MemoryRouter>
+        <Agents />
+      </MemoryRouter>,
+    );
 
     expect(container.querySelector('svg.animate-spin')).toBeTruthy();
     expect(screen.queryByText('title')).not.toBeInTheDocument();

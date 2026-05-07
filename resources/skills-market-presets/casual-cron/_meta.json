@@ -1,0 +1,22 @@
+{
+  "owner": "gostlightai",
+  "slug": "casual-cron",
+  "displayName": "Casual Cron",
+  "latest": {
+    "version": "1.2.0",
+    "publishedAt": 1770821435769,
+    "commit": "https://github.com/openclaw/skills/commit/f7b49fe6e981df9654860b6365293e219509921c"
+  },
+  "history": [
+    {
+      "version": "2.0.1",
+      "publishedAt": 1770765309696,
+      "commit": "https://github.com/openclaw/skills/commit/2b6f9385e8d788cac9ba6e2ca5b8bd5178486650"
+    },
+    {
+      "version": "1.0.1",
+      "publishedAt": 1770396874371,
+      "commit": "https://github.com/openclaw/skills/commit/2bba807fdc6fdac30613fdfac34f33189654be21"
+    }
+  ]
+}

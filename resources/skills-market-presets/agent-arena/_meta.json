@@ -1,0 +1,17 @@
+{
+  "owner": "minilozio",
+  "slug": "agent-arena",
+  "displayName": "Agent Arena Skill",
+  "latest": {
+    "version": "1.0.8",
+    "publishedAt": 1771626217042,
+    "commit": "https://github.com/openclaw/skills/commit/41ecccaa68ef6e8ec6b3ad8db362a6c4fbcfa649"
+  },
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1771511491329,
+      "commit": "https://github.com/openclaw/skills/commit/edafd1ab63a82d91fcba66b8a948b51d9043feb6"
+    }
+  ]
+}

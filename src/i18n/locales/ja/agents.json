@@ -72,6 +72,55 @@
         "channelAssigned": "{{channel}} を Agent に割り当てました",
         "channelAssignFailed": "Channel の割り当てに失敗しました: {{error}}",
         "channelRemoved": "{{channel}} を削除しました",
-        "channelRemoveFailed": "Channel の削除に失敗しました: {{error}}"
+        "channelRemoveFailed": "Channel の削除に失敗しました: {{error}}",
+        "templateAdded": "{{name}} を追加しました",
+        "templateAddFailed": "テンプレートの追加に失敗しました: {{error}}",
+        "fileLoadFailed": "ファイルの読み込みに失敗しました: {{error}}",
+        "fileSaved": "ファイルを保存しました",
+        "fileSaveFailed": "ファイルの保存に失敗しました: {{error}}"
+    },
+    "market": {
+        "open": "Agent マーケット",
+        "title": "Agent マーケット",
+        "description": "ワークスペース指示が用意された Agent テンプレートから始められます。",
+        "search": "Agent を検索...",
+        "add": "追加",
+        "installed": "追加済み",
+        "empty": "Agent テンプレートが見つかりません。",
+        "catalog": "カタログ",
+        "sectionCount": "{{count}} テンプレート",
+        "added": "追加済み",
+        "chat": "チャット"
+    },
+    "scene": {
+        "market": "マーケット",
+        "manage": "管理"
+    },
+    "manage": {
+        "importedFrom": "{{repo}} · {{path}} からインポート"
+    },
+    "files": {
+        "title": "{{name}} ファイル",
+        "description": "この Agent の OpenClaw ワークスペース初期ファイルを編集します。",
+        "source": "{{repo}} · {{path}} からインポート",
+        "edit": "ファイル編集"
+    },
+    "categories": {
+        "academic": "学術",
+        "design": "デザイン",
+        "engineering": "エンジニアリング",
+        "finance": "金融",
+        "game-development": "ゲーム開発",
+        "marketing": "マーケティング",
+        "life": "生活",
+        "social-fun": "ソーシャル・娯楽",
+        "paid-media": "広告運用",
+        "product": "プロダクト",
+        "project-management": "プロジェクト管理",
+        "sales": "セールス",
+        "spatial-computing": "空間コンピューティング",
+        "specialized": "専門領域",
+        "support": "サポート",
+        "testing": "テスト"
     }
 }

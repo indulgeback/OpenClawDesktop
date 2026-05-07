@@ -1,0 +1,11 @@
+{
+  "owner": "wrannaman",
+  "slug": "agentdo",
+  "displayName": "AgentDo",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1771943916247,
+    "commit": "https://github.com/openclaw/skills/commit/25b8af40e0cd17d48e5ad50c805e246c921b819b"
+  },
+  "history": []
+}

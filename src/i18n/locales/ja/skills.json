@@ -11,7 +11,10 @@
     "filter": {
         "all": "すべて ({{count}})",
         "builtIn": "内蔵 ({{count}})",
-        "marketplace": "マーケットプレイス ({{count}})"
+        "marketplace": "マーケットプレイス ({{count}})",
+        "builtInMarket": "マーケットスキル ({{count}})",
+        "bundled": "同梱 ({{count}})",
+        "clawhub": "ClawHub ({{count}})"
     },
     "search": "スキルを検索...",
     "searchMarketplace": "マーケットプレイスを検索...",
@@ -19,7 +22,8 @@
     "actions": {
         "enableVisible": "表示中を一括有効化",
         "disableVisible": "表示中を一括無効化",
-        "installSkill": "スキルをインストール"
+        "installSkill": "スキルをインストール",
+        "browseBuiltInMarket": "内蔵マーケット"
     },
     "noSkills": "スキルが見つかりません",
     "noSkillsSearch": "別の検索語をお試しください",
@@ -78,7 +82,9 @@
             "extra": "追加ディレクトリ",
             "agentsPersonal": "個人 .agents",
             "agentsProject": "プロジェクト .agents",
-            "unknown": "不明なソース"
+            "unknown": "不明なソース",
+            "marketPreset": "マーケットスキル",
+            "clawhub": "ClawHub からインストール"
         }
     },
     "toast": {
@@ -106,7 +112,8 @@
         "noBatchDisableTargets": "表示中のスキルはすべて無効です。",
         "batchEnabled": "{{count}} 件のスキルを有効化しました。",
         "batchDisabled": "{{count}} 件のスキルを無効化しました。",
-        "batchPartial": "{{success}} / {{total}} 件を更新しました。一部失敗しています。"
+        "batchPartial": "{{success}} / {{total}} 件を更新しました。一部失敗しています。",
+        "presetInstalled": "{{name}} をインストールして有効化しました"
     },
     "marketplace": {
         "title": "マーケットプレイス",
@@ -120,5 +127,55 @@
         "noResults": "検索に一致するスキルが見つかりません。",
         "emptyPrompt": "新しいスキルを検索して機能を拡張しましょう。",
         "searchError": "ClawHub検索に失敗しました。接続またはインストールを確認してください。"
+    },
+    "presetMarket": {
+        "title": "内蔵スキルマーケット",
+        "subtitle": "ClawHub から取得せず、アプリ同梱のプリセットスキルをインストールします。",
+        "search": "内蔵スキルを検索...",
+        "install": "インストール",
+        "installed": "インストール済み",
+        "empty": "内蔵スキルが見つかりません。"
+    },
+    "scene": {
+        "market": "マーケット",
+        "manage": "管理"
+    },
+    "market": {
+        "sourceNotice": "厳選された内蔵スキルプリセットはオフラインスナップショットから提供されます。さらに必要な場合は管理画面で ClawHub から追加できます。",
+        "sourceBadge": "内蔵",
+        "add": "追加",
+        "manage": "管理",
+        "categoryCount": "{{count}} プリセット",
+        "catalog": "カタログ"
+    },
+    "categories": {
+        "git-and-github": "Git & GitHub",
+        "coding-agents-and-ides": "Coding Agents & IDEs",
+        "browser-and-automation": "ブラウザと自動化",
+        "web-and-frontend-development": "Web・フロントエンド開発",
+        "devops-and-cloud": "DevOps・クラウド",
+        "image-and-video-generation": "画像・動画生成",
+        "apple-apps-and-services": "Apple アプリ・サービス",
+        "search-and-research": "検索・リサーチ",
+        "clawdbot-tools": "Clawdbot ツール",
+        "cli-utilities": "CLI ユーティリティ",
+        "marketing-and-sales": "マーケティング・セールス",
+        "productivity-and-tasks": "生産性・タスク",
+        "ai-and-llms": "AI・LLM",
+        "media-and-streaming": "メディア・配信",
+        "notes-and-pkm": "ノート・PKM",
+        "ios-and-macos-development": "iOS・macOS 開発",
+        "transportation": "交通",
+        "personal-development": "自己成長",
+        "health-and-fitness": "健康・フィットネス",
+        "communication": "コミュニケーション",
+        "speech-and-transcription": "音声・文字起こし",
+        "smart-home-and-iot": "スマートホーム・IoT",
+        "shopping-and-e-commerce": "ショッピング・EC",
+        "calendar-and-scheduling": "カレンダー・スケジュール",
+        "pdf-and-documents": "PDF・ドキュメント",
+        "self-hosted-and-automation": "セルフホスト・自動化",
+        "security-and-passwords": "セキュリティ・パスワード",
+        "gaming": "ゲーム"
     }
 }

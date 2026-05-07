@@ -25,18 +25,18 @@
             ]
         }
     },
-    "description": "OpenClawPro - Graphical AI Assistant based on OpenClaw",
+    "description": "YourClaw Pro - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
-    "author": "OpenClawPro Team",
+    "author": "YourClaw Pro Team",
     "license": "MIT",
     "private": true,
     "scripts": {
         "postinstall": "node scripts/patch-browser-hint.mjs",
         "init": "pnpm install && pnpm run uv:download",
-        "predev": "node scripts/generate-ext-bridge.mjs && zx scripts/prepare-preinstalled-skills-dev.mjs",
+        "predev": "node scripts/generate-ext-bridge.mjs && zx scripts/prepare-preinstalled-skills-dev.mjs && zx scripts/prepare-skills-market-dev.mjs",
         "dev": "vite",
         "ext:bridge": "node scripts/generate-ext-bridge.mjs",
-        "build": "node scripts/generate-ext-bridge.mjs && pnpm run build:vite && zx scripts/bundle-openclaw.mjs && zx scripts/bundle-openclaw-plugins.mjs && zx scripts/bundle-preinstalled-skills.mjs && node scripts/run-electron-builder.mjs",
+        "build": "node scripts/generate-ext-bridge.mjs && node scripts/generate-skills-market-data.mjs && pnpm run build:vite && zx scripts/bundle-openclaw.mjs && zx scripts/bundle-openclaw-plugins.mjs && zx scripts/bundle-preinstalled-skills.mjs && node scripts/run-electron-builder.mjs",
         "build:vite": "node --max-old-space-size=6144 ./node_modules/vite/bin/vite.js build",
         "bundle:openclaw-plugins": "zx scripts/bundle-openclaw-plugins.mjs",
         "bundle:preinstalled-skills": "zx scripts/bundle-preinstalled-skills.mjs",
@@ -59,7 +59,7 @@
         "node:download:win": "zx scripts/download-bundled-node.mjs --platform=win",
         "prep:win-binaries": "pnpm run uv:download:win && pnpm run node:download:win",
         "icons": "zx scripts/generate-icons.mjs",
-        "package": "node scripts/generate-ext-bridge.mjs && pnpm run build:vite && zx scripts/bundle-openclaw.mjs && zx scripts/bundle-openclaw-plugins.mjs && zx scripts/bundle-preinstalled-skills.mjs",
+        "package": "node scripts/generate-ext-bridge.mjs && node scripts/generate-skills-market-data.mjs && pnpm run build:vite && zx scripts/bundle-openclaw.mjs && zx scripts/bundle-openclaw-plugins.mjs && zx scripts/bundle-preinstalled-skills.mjs",
         "package:mac": "pnpm run package && node scripts/run-electron-builder.mjs --mac --publish never",
         "package:mac:local": "SKIP_PREINSTALLED_SKILLS=1 pnpm run package && node scripts/run-electron-builder.mjs --mac --publish never",
         "package:win": "pnpm run prep:win-binaries && pnpm run package && node scripts/run-electron-builder.mjs --win --publish never",
@@ -73,7 +73,8 @@
         "version:prerelease-alpha": "pnpm version prerelease --preid=alpha",
         "version:prerelease-beta": "pnpm version prerelease --preid=beta",
         "release:validate": "node scripts/assert-tag-matches-package.mjs",
-        "postversion": "git push && git push --tags"
+        "postversion": "git push && git push --tags",
+        "bundle:skills-market": "zx scripts/bundle-skills-market-presets.mjs && node scripts/generate-skills-market-data.mjs"
     },
     "dependencies": {
         "@monaco-editor/react": "^4.7.0",

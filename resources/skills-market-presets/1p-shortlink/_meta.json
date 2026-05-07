@@ -1,0 +1,11 @@
+{
+  "owner": "tuanpmt",
+  "slug": "1p-shortlink",
+  "displayName": "1p.io Shortlink API",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1771588255478,
+    "commit": "https://github.com/openclaw/skills/commit/7b052e63a4b84a756fb292be8a66688a9e19a20d"
+  },
+  "history": []
+}

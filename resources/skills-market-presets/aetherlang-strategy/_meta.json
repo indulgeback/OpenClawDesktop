@@ -1,0 +1,11 @@
+{
+  "owner": "contrario",
+  "slug": "aetherlang-strategy",
+  "displayName": "AetherLang Strategy V3",
+  "latest": {
+    "version": "2.0.0",
+    "publishedAt": 1772829809819,
+    "commit": "https://github.com/openclaw/skills/commit/349173efb0079a3549de3c07338426098c3f1182"
+  },
+  "history": []
+}

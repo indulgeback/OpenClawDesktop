@@ -5,10 +5,12 @@ import {
   createAgent,
   deleteAgentConfig,
   listAgentsSnapshot,
+  readAgentWorkspaceFile,
   removeAgentWorkspaceDirectory,
   resolveAccountIdForAgent,
   updateAgentModel,
   updateAgentName,
+  updateAgentWorkspaceFile,
 } from '../../utils/agent-config';
 import { deleteChannelAccountConfig } from '../../utils/channel-config';
 import { syncAgentModelOverrideToRuntime, syncAllProviderAuthToRuntime } from '../../services/providers/provider-runtime-sync';
@@ -119,8 +121,27 @@ export async function handleAgentRoutes(
 
   if (url.pathname === '/api/agents' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<{ name: string; inheritWorkspace?: boolean }>(req);
-      const snapshot = await createAgent(body.name, { inheritWorkspace: body.inheritWorkspace });
+      const body = await parseJsonBody<{
+        name: string;
+        inheritWorkspace?: boolean;
+        agentId?: string;
+        templateId?: string;
+        workspaceFiles?: Record<string, string>;
+        sourceRepo?: string;
+        sourceCommit?: string;
+        sourcePath?: string;
+        categoryId?: string;
+      }>(req);
+      const snapshot = await createAgent(body.name, {
+        inheritWorkspace: body.inheritWorkspace,
+        agentId: body.agentId,
+        templateId: body.templateId,
+        workspaceFiles: body.workspaceFiles,
+        sourceRepo: body.sourceRepo,
+        sourceCommit: body.sourceCommit,
+        sourcePath: body.sourcePath,
+        categoryId: body.categoryId,
+      });
       // Sync provider API keys to the new agent's auth-profiles.json so the
       // embedded runner can authenticate with LLM providers when messages
       // arrive via channel bots (e.g. Feishu). Without this, the copied
@@ -172,6 +193,20 @@ export async function handleAgentRoutes(
         }
         scheduleGatewayReload(ctx, 'update-agent-model');
         sendJson(res, 200, { success: true, ...snapshot });
+      } catch (error) {
+        sendJson(res, 500, { success: false, error: String(error) });
+      }
+      return true;
+    }
+
+    if (parts.length === 3 && parts[1] === 'files') {
+      try {
+        const agentId = decodeURIComponent(parts[0]);
+        const fileKey = decodeURIComponent(parts[2]);
+        const body = await parseJsonBody<{ content: string }>(req);
+        await updateAgentWorkspaceFile(agentId, fileKey, body.content ?? '');
+        scheduleGatewayReload(ctx, 'update-agent-file');
+        sendJson(res, 200, { success: true, content: body.content ?? '' });
       } catch (error) {
         sendJson(res, 500, { success: false, error: String(error) });
       }
@@ -242,6 +277,23 @@ export async function handleAgentRoutes(
         const snapshot = await listAgentsSnapshot();
         scheduleGatewayReload(ctx, 'remove-agent-channel');
         sendJson(res, 200, { success: true, ...snapshot });
+      } catch (error) {
+        sendJson(res, 500, { success: false, error: String(error) });
+      }
+      return true;
+    }
+  }
+
+  if (url.pathname.startsWith('/api/agents/') && req.method === 'GET') {
+    const suffix = url.pathname.slice('/api/agents/'.length);
+    const parts = suffix.split('/').filter(Boolean);
+
+    if (parts.length === 3 && parts[1] === 'files') {
+      try {
+        const agentId = decodeURIComponent(parts[0]);
+        const fileKey = decodeURIComponent(parts[2]);
+        const content = await readAgentWorkspaceFile(agentId, fileKey);
+        sendJson(res, 200, { success: true, content });
       } catch (error) {
         sendJson(res, 500, { success: false, error: String(error) });
       }

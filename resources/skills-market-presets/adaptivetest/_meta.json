@@ -1,0 +1,17 @@
+{
+  "owner": "woodstocksoftware",
+  "slug": "adaptivetest",
+  "displayName": "Adaptive Testing",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1772211982661,
+    "commit": "https://github.com/openclaw/skills/commit/bd1a76251c77dff851b82a1152a76bfafc8a11ee"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1771970101169,
+      "commit": "https://github.com/openclaw/skills/commit/6393c8dc7636e1a1b70d08fb52e7045d7f8f8977"
+    }
+  ]
+}

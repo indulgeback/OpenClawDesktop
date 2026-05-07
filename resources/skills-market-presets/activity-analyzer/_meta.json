@@ -1,0 +1,17 @@
+{
+  "owner": "qew21",
+  "slug": "activity-analyzer",
+  "displayName": "activity-analyzer",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1771863660601,
+    "commit": "https://github.com/openclaw/skills/commit/cb537556e7bc561ad63880288e464e0777398706"
+  },
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1771682493544,
+      "commit": "https://github.com/openclaw/skills/commit/590dcba4f8863719f0dd945e5251f4e52c7ab8df"
+    }
+  ]
+}

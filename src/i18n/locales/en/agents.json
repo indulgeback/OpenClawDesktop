@@ -72,6 +72,55 @@
         "channelAssigned": "{{channel}} assigned to agent",
         "channelAssignFailed": "Failed to assign channel: {{error}}",
         "channelRemoved": "{{channel}} removed",
-        "channelRemoveFailed": "Failed to remove channel: {{error}}"
+        "channelRemoveFailed": "Failed to remove channel: {{error}}",
+        "templateAdded": "{{name}} added",
+        "templateAddFailed": "Failed to add template: {{error}}",
+        "fileLoadFailed": "Failed to load file: {{error}}",
+        "fileSaved": "File saved",
+        "fileSaveFailed": "Failed to save file: {{error}}"
+    },
+    "market": {
+        "open": "Agent Market",
+        "title": "Agent Market",
+        "description": "Start from a curated agent template with workspace instructions already filled in.",
+        "search": "Search agents...",
+        "add": "Add",
+        "installed": "Added",
+        "empty": "No agent templates found.",
+        "catalog": "Catalog",
+        "sectionCount": "{{count}} templates",
+        "added": "Added",
+        "chat": "Chat"
+    },
+    "scene": {
+        "market": "Market",
+        "manage": "Manage"
+    },
+    "manage": {
+        "importedFrom": "Imported from {{repo}} · {{path}}"
+    },
+    "files": {
+        "title": "{{name}} Files",
+        "description": "Edit this agent's OpenClaw workspace bootstrap files.",
+        "source": "Imported from {{repo}} · {{path}}",
+        "edit": "Edit files"
+    },
+    "categories": {
+        "academic": "Academic",
+        "design": "Design",
+        "engineering": "Engineering",
+        "finance": "Finance",
+        "game-development": "Game Development",
+        "marketing": "Marketing",
+        "life": "Life",
+        "social-fun": "Social Fun",
+        "paid-media": "Paid Media",
+        "product": "Product",
+        "project-management": "Project Management",
+        "sales": "Sales",
+        "spatial-computing": "Spatial Computing",
+        "specialized": "Specialized",
+        "support": "Support",
+        "testing": "Testing"
     }
 }

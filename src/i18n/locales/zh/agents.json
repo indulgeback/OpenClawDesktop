@@ -72,6 +72,55 @@
         "channelAssigned": "{{channel}} 已分配给 Agent",
         "channelAssignFailed": "分配频道失败：{{error}}",
         "channelRemoved": "{{channel}} 已移除",
-        "channelRemoveFailed": "移除频道失败：{{error}}"
+        "channelRemoveFailed": "移除频道失败：{{error}}",
+        "templateAdded": "已添加 {{name}}",
+        "templateAddFailed": "添加模板失败：{{error}}",
+        "fileLoadFailed": "加载文件失败：{{error}}",
+        "fileSaved": "文件已保存",
+        "fileSaveFailed": "保存文件失败：{{error}}"
+    },
+    "market": {
+        "open": "Agent 市场",
+        "title": "Agent 市场",
+        "description": "从预制 Agent 模板开始，工作区指令已自动填好。",
+        "search": "搜索 Agent...",
+        "add": "添加",
+        "installed": "已添加",
+        "empty": "未找到 Agent 模板。",
+        "catalog": "目录",
+        "sectionCount": "{{count}} 个模板",
+        "added": "已添加",
+        "chat": "聊天"
+    },
+    "scene": {
+        "market": "市场",
+        "manage": "管理"
+    },
+    "manage": {
+        "importedFrom": "导入自 {{repo}} · {{path}}"
+    },
+    "files": {
+        "title": "{{name}} 文件",
+        "description": "编辑该 Agent 的 OpenClaw 工作区引导文件。",
+        "source": "导入自 {{repo}} · {{path}}",
+        "edit": "编辑文件"
+    },
+    "categories": {
+        "academic": "学术",
+        "design": "设计",
+        "engineering": "工程",
+        "finance": "金融",
+        "game-development": "游戏开发",
+        "marketing": "营销",
+        "life": "生活",
+        "social-fun": "社交娱乐",
+        "paid-media": "付费投放",
+        "product": "产品",
+        "project-management": "项目管理",
+        "sales": "销售",
+        "spatial-computing": "空间计算",
+        "specialized": "专业领域",
+        "support": "支持",
+        "testing": "测试"
     }
 }
