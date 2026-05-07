@@ -39,6 +39,8 @@ desktop.ini
 
 # Test coverage
 coverage/
+playwright-report/
+test-results/
 
 # Cache
 .cache/
@@ -64,4 +66,10 @@ artifacts/
 docs/pr-session-notes-*.md
 
 .cursor/
+.claude/
 .pnpm-store/
+package-lock.json
+
+# Generated extension bridges (created by scripts/generate-ext-bridge.mjs)
+electron/extensions/_ext-bridge.generated.ts
+src/extensions/_ext-bridge.generated.ts

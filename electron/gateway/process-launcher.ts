@@ -117,6 +117,29 @@ export async function launchGatewayProcess(options: {
   const lastSpawnSummary = `mode=${mode}, entry="${entryScript}", args="${options.sanitizeSpawnArgs(gatewayArgs).join(' ')}", cwd="${openclawDir}"`;
 
   const runtimeEnv = { ...forkEnv };
+
+  // Disable OpenClaw's mDNS/Bonjour gateway advertiser unconditionally.
+  //
+  // The OpenClaw gateway advertises `_openclaw-gw._tcp.local` on every
+  // active network interface using a hardcoded `openclaw.local` hostname,
+  // which causes:
+  //   - cross-machine name collisions when multiple OpenClaw/OpenClawPro peers
+  //     share a LAN (each falls back to "<name> (OpenClaw) (2)")
+  //   - self-collisions on multi-homed hosts (Wi-Fi + Tailscale + utun ...)
+  //   - "ghost" record collisions after an unclean OpenClawPro exit, because
+  //     SIGKILL prevents ciao from emitting the mDNS goodbye record.
+  //
+  // OpenClawPro has no UI for LAN gateway discovery today, so the advertiser is
+  // pure log noise.  `OPENCLAW_DISABLE_BONJOUR=1` short-circuits
+  // `startGatewayBonjourAdvertiser()` (openclaw `src/infra/bonjour.ts`,
+  // `isDisabledByEnv()`).  Set after the `forkEnv` spread so any
+  // pre-existing value inherited from the user shell cannot re-enable it.
+  runtimeEnv.OPENCLAW_DISABLE_BONJOUR = '1';
+
+  // Only apply the fetch/child_process preload in dev mode.
+  // In packaged builds Electron's UtilityProcess rejects NODE_OPTIONS
+  // with --require, logging "Most NODE_OPTIONs are not supported in
+  // packaged apps" and the preload never loads.
   if (!app.isPackaged) {
     try {
       const preloadPath = ensureGatewayFetchPreload();
@@ -158,7 +181,12 @@ export async function launchGatewayProcess(options: {
     });
 
     child.on('exit', (code: number) => {
-      const expectedExit = !options.getShouldReconnect() || options.getCurrentState() === 'stopped';
+      // Only check shouldReconnect — not current state.  On Windows the WS
+      // close handler fires before the process exit handler and sets state to
+      // 'stopped', which would make an unexpected crash look like a planned
+      // shutdown in logs.  shouldReconnect is the reliable indicator: stop()
+      // sets it to false (expected), crashes leave it true (unexpected).
+      const expectedExit = !options.getShouldReconnect();
       const level = expectedExit ? logger.info : logger.warn;
       level(`Gateway process exited (code=${code}, expected=${expectedExit ? 'yes' : 'no'})`);
       options.onExit(child, code);

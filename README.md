@@ -30,7 +30,7 @@
 </p>
 
 <p align="center">
-  English | <a href="README.zh-CN.md">简体中文</a> | <a href="README.ja-JP.md">日本語</a>
+  English | <a href="README.zh-CN.md">简体中文</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.ru-RU.md">Русский</a>
 </p>
 
 ---
@@ -90,6 +90,8 @@ OpenClawPro is built directly upon the official **OpenClaw** core. Instead of re
 
 We are committed to maintaining strict alignment with the upstream OpenClaw project, ensuring that you always have access to the latest capabilities, stability improvements, and ecosystem compatibility provided by the official releases.
 
+When Developer Mode is enabled, the sidebar also provides a native Dreams page for OpenClaw memory review, dream diary inspection, and basic maintenance actions. The full upstream OpenClaw Dreams UI remains available from that page when deeper diagnostics are needed.
+
 ---
 
 ## Features
@@ -98,30 +100,34 @@ We are committed to maintaining strict alignment with the upstream OpenClaw proj
 Complete the entire setup—from installation to your first AI interaction—through an intuitive graphical interface. No terminal commands, no YAML files, no environment variable hunting.
 
 ### 💬 Intelligent Chat Interface
-Communicate with AI agents through a modern chat experience. Support for multiple conversation contexts, message history, rich content rendering with Markdown, and direct `@agent` routing in the main composer for multi-agent setups.
+Communicate with AI agents through a modern chat experience. Support for multiple conversation contexts, message history, rich content rendering with Markdown (including GitHub-flavored tables and KaTeX-powered LaTeX math: `$inline$`, `$$block$$`, `\(inline\)`, and `\[block\]`), and direct `@agent` routing in the main composer for multi-agent setups.
 When you target another agent with `@agent`, OpenClawPro switches into that agent's own conversation context directly instead of relaying through the default agent. Agent workspaces stay separate by default, and stronger isolation depends on OpenClaw sandbox settings.
+Each agent can also override its own `provider/model` runtime setting; agents without overrides continue inheriting the global default model.
 
 ### 📡 Multi-Channel Management
 Configure and monitor multiple AI channels simultaneously. Each channel operates independently, allowing you to run specialized agents for different tasks.
 Each channel now supports multiple accounts, per-account agent binding, and switching the channel default account directly from the Channels page.
+For custom channel account IDs, OpenClawPro enforces OpenClaw-compatible canonical IDs (`[a-z0-9_-]`, lowercase, max 64 chars, must start with a letter/number) to prevent routing mismatches.
 OpenClawPro now also bundles Tencent's official personal WeChat channel plugin, so you can link WeChat directly from the Channels page with an in-app QR flow.
 
 ### ⏰ Cron-Based Automation
 Schedule AI tasks to run automatically. Define triggers, set intervals, and let your AI agents work around the clock without manual intervention.
+The Cron page now lets you configure external delivery directly in the task form with separate sender-account and recipient-target selectors. For supported channels, recipient targets are discovered automatically from channel directories or known session history, so you no longer need to edit `jobs.json` by hand.
+
 
 ### 🧩 Extensible Skill System
 Extend your AI agents with pre-built skills. Browse, install, and manage skills through the integrated skill panel—no package managers required.
-OpenClawPro also pre-bundles full document-processing skills (`pdf`, `xlsx`, `docx`, `pptx`), deploys them automatically to the managed skills directory (default `~/.openclaw/skills`) on startup, and enables them by default on first install. Additional bundled skills (`find-skills`, `self-improving-agent`, `tavily-search`, `brave-web-search`) are also enabled by default; if required API keys are missing, OpenClaw will surface configuration errors in runtime.  
+OpenClawPro also pre-bundles full document-processing skills (`pdf`, `xlsx`, `docx`, `pptx`), deploys them automatically to the managed skills directory (default `~/.openclaw/skills`) on startup, and enables them by default on first install. Additional bundled skills (`find-skills`, `self-improving-agent`, `tavily-search`) are also enabled by default; if required API keys are missing, OpenClaw will surface configuration errors in runtime.  
 The Skills page can display skills discovered from multiple OpenClaw sources (managed dir, workspace, and extra skill dirs), and now shows each skill's actual location so you can open the real folder directly.
 
 Environment variables for bundled search skills:
-- `BRAVE_SEARCH_API_KEY` for `brave-web-search`
 - `TAVILY_API_KEY` for `tavily-search` (OAuth may also be supported by upstream skill runtime)
 - `find-skills` and `self-improving-agent` do not require API keys
 
 ### 🔐 Secure Provider Integration
 Connect to multiple AI providers (OpenAI, Anthropic, and more) with credentials stored securely in your system's native keychain. OpenAI supports both API key and browser OAuth (Codex subscription) sign-in.
 For **Custom** providers used with OpenAI-compatible gateways, you can set a custom `User-Agent` in **Settings → AI Providers → Edit Provider** for compatibility-sensitive endpoints.
+When a compatible gateway rejects `/models` for non-auth reasons, OpenClawPro automatically falls back to a lightweight `/chat/completions` or `/responses` probe during API key validation.
 
 ### 🌙 Adaptive Theming
 Light mode, dark mode, or system-synchronized themes. OpenClawPro adapts to your preferences automatically.
@@ -207,49 +213,50 @@ Notes:
 
 OpenClawPro employs a **dual-process architecture** with a unified host API layer. The renderer talks to a single client abstraction, while Electron Main owns protocol selection and process lifecycle:
 
-```┌─────────────────────────────────────────────────────────────────┐
+```
+┌──────────────────────────────────────────────────────────────────┐
 │                        OpenClawPro Desktop App                         │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │              Electron Main Process                          │  │
+│  │              Electron Main Process                         │  │
 │  │  • Window & application lifecycle management               │  │
-│  │  • Gateway process supervision                              │  │
-│  │  • System integration (tray, notifications, keychain)       │  │
-│  │  • Auto-update orchestration                                │  │
+│  │  • Gateway process supervision                             │  │
+│  │  • System integration (tray, notifications, keychain)      │  │
+│  │  • Auto-update orchestration                               │  │
 │  └────────────────────────────────────────────────────────────┘  │
-│                              │                                    │
-│                              │ IPC (authoritative control plane)  │
-│                              ▼                                    │
+│                              │                                   │
+│                              │ IPC (authoritative control plane) │
+│                              ▼                                   │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │              React Renderer Process                         │  │
-│  │  • Modern component-based UI (React 19)                     │  │
-│  │  • State management with Zustand                            │  │
-│  │  • Unified host-api/api-client calls                        │  │
-│  │  • Rich Markdown rendering                                  │  │
+│  │              React Renderer Process                        │  │
+│  │  • Modern component-based UI (React 19)                    │  │
+│  │  • State management with Zustand                           │  │
+│  │  • Unified host-api/api-client calls                       │  │
+│  │  • Rich Markdown rendering                                 │  │
 │  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬──────────────────────────────────┘
+└──────────────────────────────┬───────────────────────────────────┘
                                │
                                │ Main-owned transport strategy
                                │ (WS first, HTTP then IPC fallback)
                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                Host API & Main Process Proxies                  │
+┌──────────────────────────────────────────────────────────────────┐
+│                Host API & Main Process Proxies                   │
 │                                                                  │
-│  • hostapi:fetch (Main proxy, avoids CORS in dev/prod)          │
+│  • hostapi:fetch (Main proxy, avoids CORS in dev/prod)           │
 │  • gateway:httpProxy (Renderer never calls Gateway HTTP direct)  │
 │  • Unified error mapping & retry/backoff                         │
-└──────────────────────────────┬──────────────────────────────────┘
+└──────────────────────────────┬───────────────────────────────────┘
                                │
                                │ WS / HTTP / IPC fallback
                                ▼
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────┐
 │                     OpenClaw Gateway                             │
 │                                                                  │
-│  • AI agent runtime and orchestration                           │
+│  • AI agent runtime and orchestration                            │
 │  • Message channel management                                    │
-│  • Skill/plugin execution environment                           │
+│  • Skill/plugin execution environment                            │
 │  • Provider abstraction layer                                    │
-└─────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────┘
 ```
 ### Design Principles
 
@@ -266,6 +273,7 @@ OpenClawPro employs a **dual-process architecture** with a unified host API laye
 - Single-instance protection uses Electron's lock plus a local process-file lock fallback, preventing duplicate app launch in environments where desktop IPC/session bus is unstable.
 - During rolling upgrades, mixed old/new app versions can still have asymmetric protection behavior. For best reliability, upgrade all desktop clients to the same version.
 - The OpenClaw Gateway listener should still be **single-owner**: only one process should listen on `127.0.0.1:18789`.
+- Gateway readiness is based on OpenClaw core signals such as `system-presence`, `health`, and `status`; memory, Dreams, or channel failures are shown as capability degradation instead of global Gateway failure.
 - To verify the active listener:
   - macOS/Linux: `lsof -nP -iTCP:18789 -sTCP:LISTEN`
   - Windows (PowerShell): `Get-NetTCPConnection -LocalPort 18789 -State Listen`
@@ -319,6 +327,7 @@ Chain multiple skills together to create sophisticated automation pipelines. Pro
 │   ├── i18n/                # Localization resources
 │   └── types/               # TypeScript type definitions
 ├── tests/
+│   ├── e2e/                 # Playwright Electron end-to-end smoke tests
 │   └── unit/                # Vitest unit/integration-like tests
 ├── resources/                # Static assets (icons/images)
 └── scripts/                  # Build and utility scripts
@@ -336,6 +345,8 @@ pnpm typecheck            # TypeScript validation
 
 # Testing
 pnpm test                 # Run unit tests
+pnpm run test:e2e         # Run Electron E2E smoke tests with Playwright
+pnpm run test:e2e:headed  # Run Electron E2E tests with a visible window
 pnpm run comms:replay     # Compute communication replay metrics
 pnpm run comms:baseline   # Refresh communication baseline snapshot
 pnpm run comms:compare    # Compare replay metrics against baseline thresholds
@@ -349,6 +360,8 @@ pnpm package:win          # Package for Windows
 pnpm package:linux        # Package for Linux
 ```
 
+On headless Linux, run Electron tests under a display server such as `xvfb-run -a pnpm run test:e2e`.
+
 ### Communication Regression Checks
 
 When a PR changes communication paths (gateway events, chat runtime send/receive flow, channel delivery, or transport fallback), run:
@@ -359,6 +372,28 @@ pnpm run comms:compare
 ```
 
 `comms-regression` in CI enforces required scenarios and threshold checks.
+
+### Electron E2E Tests
+
+The Playwright Electron suite launches the packaged renderer and main process
+from `dist/` and `dist-electron/`, so it does not require manually running
+`pnpm dev` first.
+
+`pnpm run test:e2e` automatically:
+
+- builds the renderer and Electron bundles with `pnpm run build:vite`
+- starts Electron in an isolated E2E mode with a temporary `HOME`
+- uses a temporary OpenClawPro `userData` directory
+- skips heavy startup side effects such as gateway auto-start, bundled skill
+  installation, tray creation, and CLI auto-install
+
+The first two baseline specs cover:
+
+- first-launch setup wizard visibility on a fresh profile
+- skipping setup and navigating to the Models page inside the Electron app
+
+Add future Electron flows under `tests/e2e/` and reuse the shared fixture in
+`tests/e2e/fixtures/electron.ts`.
 ### Tech Stack
 
 | Layer | Technology |

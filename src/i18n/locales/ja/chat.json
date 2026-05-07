@@ -1,4 +1,7 @@
 {
+    "runError": {
+        "title": "モデルAPI呼び出しエラー"
+    },
     "gatewayNotRunning": "ゲートウェイが停止中",
     "gatewayRequired": "チャットを利用するには OpenClaw ゲートウェイが実行されている必要があります。自動的に起動するか、設定から起動できます。",
     "welcome": {
@@ -13,12 +16,160 @@
     "noLogs": "（ログはまだありません）",
     "toolbar": {
         "refresh": "チャットを更新",
-        "showThinking": "思考を表示",
-        "hideThinking": "思考を非表示",
-        "currentAgent": "現在の会話相手: {{agent}}"
+        "currentAgent": "現在の会話相手: {{agent}}",
+        "workspace": "ワークスペース"
+    },
+    "generatedFiles": {
+        "title": "ファイルの変更（{{count}} 件）",
+        "created": "新規",
+        "modified": "更新",
+        "openFolder": "フォルダーを開く",
+        "viewAll": "ファイル変更を見る"
+    },
+    "runError": {
+        "title": "モデル呼び出しに失敗しました"
+    },
+    "artifactPanel": {
+        "tabs": {
+            "changes": "変更",
+            "preview": "プレビュー",
+            "browser": "ワークスペース"
+        },
+        "actions": {
+            "back": "一覧に戻る"
+        },
+        "changes": {
+            "heading": "ファイルの変更（{{count}} 件）",
+            "empty": "この会話にはまだファイルの変更がありません",
+            "selectFileHint": "会話内のファイルカード、または「変更を表示」をクリックして diff を開きます。"
+        },
+        "preview": {
+            "emptyTitle": "ファイルが選択されていません",
+            "emptyHint": "まず会話内のファイルカードをクリックしてファイルを選択すると、ここにプレビューが表示されます。"
+        }
+    },
+    "filePreview": {
+        "tabs": {
+            "source": "ソース",
+            "preview": "プレビュー",
+            "changes": "変更",
+            "info": "情報"
+        },
+        "actions": {
+            "save": "保存",
+            "saving": "保存中...",
+            "revert": "元に戻す",
+            "openInFinder": "ファイルマネージャーで表示",
+            "openDirectly": "直接開く",
+            "close": "閉じる"
+        },
+        "info": {
+            "path": "パス",
+            "size": "サイズ",
+            "type": "種類"
+        },
+        "toast": {
+            "saved": "ディスクに保存しました",
+            "saveFailed": "保存に失敗しました: {{error}}"
+        },
+        "errors": {
+            "outsideSandbox": "サンドボックス外のパスのため拒否しました",
+            "outsideSandboxTitle": "このファイルを読み取れません",
+            "outsideSandboxHint": "OpenClawPro はこのパスを読み取れませんでした。ファイルが移動または削除されたか、現在のアカウントにアクセス権がない可能性があります。ファイルマネージャーで表示できます。",
+            "readOnlyRoot": "このファイルは読み取り専用領域（内蔵スキルなど）にあり、変更できません",
+            "tooLarge": "ファイルが大きすぎます（{{size}}）。プレビューを無効化しました",
+            "binary": "バイナリファイルのためテキストプレビューはできません",
+            "notFound": "ファイルが見つかりません",
+            "loadFailed": "読み込みに失敗しました: {{error}}",
+            "noPreview": "このファイルにはプレビューがありません",
+            "unsupportedFormatTitle": "このファイル形式は内蔵プレビューまたは差分表示に未対応です",
+            "unsupportedFormatHint": "現在、内蔵プレビューと差分表示は直接読み取れるテキスト/Markdown 系ファイルのみ対応しています。ファイルマネージャーで開いてください。",
+            "largeBinaryOpenTitle": "このファイルは大きいため内蔵プレビューできません",
+            "largeBinaryOpenHint": "このファイルは {{size}} です。OpenClawPro では内蔵プレビューできませんが、確認後にシステム既定のアプリで開けます。",
+            "openInFinderFailed": "ファイルマネージャーで表示できません",
+            "openFailed": "開けませんでした: {{error}}"
+        },
+        "diff": {
+            "noChanges": "表示する変更はありません",
+            "newFile": "新規ファイルのため比較対象がありません",
+            "tooLarge": "ファイルが大きすぎるため diff ビューは無効化されました。完全な内容は「ソース」タブで確認してください",
+            "unavailable": "この会話ではこのファイルの正確な変更ベースラインを取得できなかったため、差分を生成できません。", 
+            "unavailableHint": "「プレビュー」で現在の内容を確認するか、Git などで正確な差分を参照してください。"
+        },
+        "confirmOpen": {
+            "title": "ファイルを開く",
+            "message": "「{{fileName}}」をシステム既定のアプリで開きますか？",
+            "detail": "このファイルはシステム既定のアプリで開かれます。",
+            "size": "ファイルサイズ: {{size}}",
+            "cancel": "キャンセル"
+        },
+        "pdf": {
+            "loadFailed": "PDF の読み込みに失敗しました: {{error}}",
+            "prev": "前のページ",
+            "next": "次のページ",
+            "zoomIn": "拡大",
+            "zoomOut": "縮小",
+            "zoomReset": "幅に合わせる",
+            "pageInputAria": "現在のページ",
+            "singlePageHint": "ツールバーから {{total}} ページを切り替えできます"
+        },
+        "sheet": {
+            "loadFailed": "スプレッドシートの読み込みに失敗しました: {{error}}",
+            "empty": "表示できるワークシートがありません",
+            "emptySheet": "このワークシートは空です",
+            "unnamedSheet": "シート {{idx}}",
+            "rowRange": "行 {{from}}-{{to}} / {{total}}",
+            "prevPage": "前のページ",
+            "nextPage": "次のページ"
+        }
+    },
+    "workspace": {
+        "title": "ワークスペース",
+        "freshBadge": "今回の実行で更新",
+        "pickFile": "左側のファイルを選択してプレビュー",
+        "empty": "ワークスペースが空、またはアクセスできません",
+        "truncated": "ディレクトリが大きいため、5000 件までで切り詰めました",
+        "actions": {
+            "refresh": "更新",
+            "openRootInFinder": "ルートをファイルマネージャーで表示",
+            "toggleHidden": "隠しファイル表示切替",
+            "showHidden": "隠しファイルを表示",
+            "hideHidden": "隠しファイルを隠す"
+        }
+    },
+    "taskPanel": {
+        "eyebrow": "実行ビュー",
+        "title": "タスクの流れ",
+        "emptyTitle": "まだ構造化されたステップはありません",
+        "emptyBody": "実行が始まると、OpenClawPro は思考・ツール呼び出し・最終化の状態をここに表示します。",
+        "status": {
+            "idle": "待機中",
+            "running_one": "進行中 1 件",
+            "running_other": "進行中 {{count}} 件"
+        },
+        "stepStatus": {
+            "running": "実行中",
+            "completed": "完了",
+            "error": "エラー"
+        }
+    },
+    "executionGraph": {
+        "title": "実行グラフ",
+        "branchLabel": "branch",
+        "thinkingLabel": "考え中",
+        "errorLabel": "エラー",
+        "agentRun": "{{agent}} の実行",
+        "collapsedSummary": "ツール呼び出し {{toolCount}} 件 · プロセスメッセージ {{processCount}} 件",
+        "collapseAction": "実行グラフを折りたたむ"
     },
     "composer": {
         "attachFiles": "ファイルを添付",
+        "pickSkill": "Skill を選択",
+        "skillButton": "Skills",
+        "skillPickerTitle": "{{agent}} のクイック Skill",
+        "skillSearchPlaceholder": "Skill を検索",
+        "skillLoading": "Skill を読み込み中...",
+        "skillEmpty": "一致する Skill がありません",
         "pickAgent": "Agent を選択",
         "clearTarget": "送信先 Agent をクリア",
         "targetChip": "@{{agent}}",

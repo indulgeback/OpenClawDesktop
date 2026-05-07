@@ -4,9 +4,9 @@
  * All file I/O is async (fs/promises) to avoid blocking the Electron
  * main thread.
  */
-import { access, readFile, writeFile, readdir, mkdir, unlink } from 'fs/promises';
+import { access, readFile, writeFile, readdir, unlink } from 'fs/promises';
 import { constants } from 'fs';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import { homedir } from 'os';
 import { logger } from './logger';
 import { getResourcesDir } from './paths';
@@ -20,10 +20,10 @@ async function fileExists(p: string): Promise<boolean> {
   try { await access(p, constants.F_OK); return true; } catch { return false; }
 }
 
-async function ensureDir(dir: string): Promise<void> {
-  if (!(await fileExists(dir))) {
-    await mkdir(dir, { recursive: true });
-  }
+function isCurrentOpenClawPath(p: string): boolean {
+  const openclawDir = resolve(join(homedir(), '.openclaw'));
+  const workspaceDir = resolve(p);
+  return workspaceDir === openclawDir || workspaceDir.startsWith(openclawDir + sep);
 }
 
 // ── Pure helpers (no I/O) ────────────────────────────────────────
@@ -43,16 +43,91 @@ export function mergeOpenClawProSection(existing: string, section: string): stri
   return existing.trimEnd() + '\n\n' + wrapped + '\n';
 }
 
+/**
+ * Strip the "## First Run" section from workspace AGENTS.md content.
+ * This section is seeded by the OpenClaw Gateway but is unnecessary
+ * for OpenClawPro-managed workspaces.  Removes everything from the heading
+ * line until the next markdown heading (any level) or end of content.
+ */
+export function stripFirstRunSection(content: string): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let skipping = false;
+  let consumedFirstParagraph = false;
+  let seenBlankAfterParagraph = false;
+
+  for (const line of lines) {
+    const isHeading = /^#{1,6}\s/.test(line);
+    const trimmed = line.trim();
+
+    if (line.trim() === '## First Run') {
+      skipping = true;
+      consumedFirstParagraph = false;
+      seenBlankAfterParagraph = false;
+      continue;
+    }
+
+    if (skipping) {
+      // A new heading marks the end of the First Run block.
+      if (isHeading) {
+        skipping = false;
+      } else if (!consumedFirstParagraph) {
+        // Drop leading blank lines and the first guidance paragraph.
+        if (trimmed.length === 0) {
+          continue;
+        }
+        consumedFirstParagraph = true;
+        continue;
+      } else if (!seenBlankAfterParagraph) {
+        // Keep consuming the same paragraph until a blank line appears.
+        if (trimmed.length === 0) {
+          seenBlankAfterParagraph = true;
+          continue;
+        }
+        continue;
+      } else {
+        // After paragraph + blank line, preserve subsequent body content.
+        if (trimmed.length === 0) {
+          continue;
+        }
+        skipping = false;
+      }
+    }
+
+    if (!skipping) {
+      result.push(line);
+    }
+  }
+
+  // Collapse any resulting triple+ blank lines into double
+  return result.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
 // ── Workspace directory resolution ───────────────────────────────
 
+type WorkspaceDir = {
+  dir: string;
+  /**
+   * Only the default workspace is expected to be seeded during Gateway startup.
+   * Other agent workspaces may remain empty until that agent is actually used,
+   * so missing bootstrap files there should not keep a startup retry loop alive.
+   */
+  waitForGatewaySeed: boolean;
+};
+
 /**
- * Collect all unique workspace directories from the openclaw config:
- * the defaults workspace, each agent's workspace, and any workspace-*
- * directories that already exist under ~/.openclaw/.
+ * Collect all unique workspace directories from the openclaw config.
  */
-async function resolveAllWorkspaceDirs(): Promise<string[]> {
+async function resolveAllWorkspaceDirs(): Promise<WorkspaceDir[]> {
   const openclawDir = join(homedir(), '.openclaw');
-  const dirs = new Set<string>();
+  const dirs = new Map<string, WorkspaceDir>();
+  const addDir = (dir: string, waitForGatewaySeed: boolean) => {
+    const existing = dirs.get(dir);
+    dirs.set(dir, {
+      dir,
+      waitForGatewaySeed: waitForGatewaySeed || existing?.waitForGatewaySeed === true,
+    });
+  };
 
   const configPath = join(openclawDir, 'openclaw.json');
   try {
@@ -60,8 +135,10 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
       const config = JSON.parse(await readFile(configPath, 'utf-8'));
 
       const defaultWs = config?.agents?.defaults?.workspace;
+      let hasDefaultWorkspace = false;
       if (typeof defaultWs === 'string' && defaultWs.trim()) {
-        dirs.add(defaultWs.replace(/^~/, homedir()));
+        addDir(defaultWs.replace(/^~/, homedir()), true);
+        hasDefaultWorkspace = true;
       }
 
       const agents = config?.agents?.list;
@@ -69,7 +146,9 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
         for (const agent of agents) {
           const ws = agent?.workspace;
           if (typeof ws === 'string' && ws.trim()) {
-            dirs.add(ws.replace(/^~/, homedir()));
+            const isMainDefault =
+              agent?.default === true || (agent?.id === 'main' && !hasDefaultWorkspace);
+            addDir(ws.replace(/^~/, homedir()), isMainDefault);
           }
         }
       }
@@ -85,10 +164,10 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
   // explicitly declared in openclaw.json should be seeded.
 
   if (dirs.size === 0) {
-    dirs.add(join(openclawDir, 'workspace'));
+    addDir(join(openclawDir, 'workspace'), true);
   }
 
-  return [...dirs];
+  return [...dirs.values()];
 }
 
 // ── Bootstrap file repair ────────────────────────────────────────
@@ -99,7 +178,7 @@ async function resolveAllWorkspaceDirs(): Promise<string[]> {
  */
 export async function repairOpenClawProOnlyBootstrapFiles(): Promise<void> {
   const workspaceDirs = await resolveAllWorkspaceDirs();
-  for (const workspaceDir of workspaceDirs) {
+  for (const { dir: workspaceDir } of workspaceDirs) {
     if (!(await fileExists(workspaceDir))) continue;
 
     let entries: string[];
@@ -135,77 +214,162 @@ export async function repairOpenClawProOnlyBootstrapFiles(): Promise<void> {
   }
 }
 
+/**
+ * OpenClawPro ships a default desktop identity and does not need OpenClaw's
+ * chat-first personalization script. Once the Gateway has seeded the regular
+ * workspace files, remove BOOTSTRAP.md so sessions start normally.
+ */
+export async function removeChatFirstBootstrapFiles(): Promise<void> {
+  const workspaceDirs = await resolveAllWorkspaceDirs();
+  for (const { dir: workspaceDir } of workspaceDirs) {
+    const bootstrapPath = join(workspaceDir, 'BOOTSTRAP.md');
+    if (!(await fileExists(bootstrapPath))) continue;
+
+    try {
+      await unlink(bootstrapPath);
+      logger.info(`Removed chat-first bootstrap file from OpenClawPro workspace (${workspaceDir})`);
+    } catch {
+      logger.warn(`Failed to remove chat-first bootstrap file: ${bootstrapPath}`);
+    }
+  }
+}
+
 // ── Context merging ──────────────────────────────────────────────
 
 /**
- * Merge OpenClawPro context snippets into workspace bootstrap files that
- * already exist on disk.  Returns the number of target files that were
- * skipped because they don't exist yet.
+ * Merge OpenClawPro context snippets into workspace bootstrap files that already
+ * exist on disk. Missing files are only retryable for startup-owned workspaces.
  */
-async function mergeOpenClawProContextOnce(): Promise<number> {
+type MergeResult = {
+  missing: number;
+  retryableMissing: number;
+};
+
+type EnsureOpenClawProContextOptions = {
+  /**
+   * Startup should only wait for the default workspace. Explicit provisioning
+   * flows can opt in so a freshly-created agent workspace gets patched after
+   * the Gateway seeds it.
+   */
+  waitForAllConfiguredWorkspaces?: boolean;
+};
+
+async function mergeOpenClawProContextOnce(options: EnsureOpenClawProContextOptions = {}): Promise<MergeResult> {
   const contextDir = join(getResourcesDir(), 'context');
   if (!(await fileExists(contextDir))) {
     logger.debug('OpenClawPro context directory not found, skipping context merge');
-    return 0;
+    return { missing: 0, retryableMissing: 0 };
   }
 
   let files: string[];
   try {
     files = (await readdir(contextDir)).filter((f) => f.endsWith('.openclawpro.md'));
   } catch {
-    return 0;
+    return { missing: 0, retryableMissing: 0 };
   }
 
   const workspaceDirs = await resolveAllWorkspaceDirs();
-  let skipped = 0;
+  let missing = 0;
+  let retryableMissing = 0;
 
-  for (const workspaceDir of workspaceDirs) {
-    await ensureDir(workspaceDir);
+  for (const { dir: workspaceDir, waitForGatewaySeed } of workspaceDirs) {
+    const workspaceExists = await fileExists(workspaceDir);
+    const shouldWaitForSeed =
+      (waitForGatewaySeed || options.waitForAllConfiguredWorkspaces === true)
+      && (workspaceExists || isCurrentOpenClawPath(workspaceDir));
+
+    if (!workspaceExists) {
+      if (shouldWaitForSeed) {
+        retryableMissing += files.length;
+      }
+      missing += files.length;
+      continue;
+    }
 
     for (const file of files) {
       const targetName = file.replace('.openclawpro.md', '.md');
       const targetPath = join(workspaceDir, targetName);
 
       if (!(await fileExists(targetPath))) {
-        logger.debug(`Skipping ${targetName} in ${workspaceDir} (file does not exist yet, will be seeded by gateway)`);
-        skipped++;
+        missing++;
+        if (shouldWaitForSeed) {
+          retryableMissing++;
+        }
         continue;
       }
 
       const section = await readFile(join(contextDir, file), 'utf-8');
-      const existing = await readFile(targetPath, 'utf-8');
+      const originalExisting = await readFile(targetPath, 'utf-8');
+      let existing = originalExisting;
+
+      // Strip unwanted Gateway-seeded sections before merging
+      if (targetName === 'AGENTS.md') {
+        const stripped = stripFirstRunSection(existing);
+        if (stripped !== existing) {
+          existing = stripped;
+          logger.info(`Stripped First Run section from ${targetName} (${workspaceDir})`);
+        }
+      }
 
       const merged = mergeOpenClawProSection(existing, section);
-      if (merged !== existing) {
+      // Compare against on-disk content so we persist changes even when only
+      // First Run stripping happened and the OpenClawPro section stayed identical.
+      if (merged !== originalExisting) {
         await writeFile(targetPath, merged, 'utf-8');
         logger.info(`Merged OpenClawPro context into ${targetName} (${workspaceDir})`);
       }
     }
   }
 
-  return skipped;
+  return { missing, retryableMissing };
 }
 
 const RETRY_INTERVAL_MS = 2000;
-const MAX_RETRIES = 15;
+const MAX_RETRIES = 5;
+let ensureOpenClawProContextPromise: Promise<void> | null = null;
+let ensureOpenClawProContextWaitsForAll = false;
 
 /**
  * Ensure OpenClawPro context snippets are merged into the openclaw workspace
  * bootstrap files.
  */
-export async function ensureOpenClawProContext(): Promise<void> {
-  let skipped = await mergeOpenClawProContextOnce();
-  if (skipped === 0) return;
+export async function ensureOpenClawProContext(options: EnsureOpenClawProContextOptions = {}): Promise<void> {
+  if (ensureOpenClawProContextPromise) {
+    if (options.waitForAllConfiguredWorkspaces && !ensureOpenClawProContextWaitsForAll) {
+      return ensureOpenClawProContextPromise.then(() => ensureOpenClawProContext(options));
+    }
+    return ensureOpenClawProContextPromise;
+  }
+
+  ensureOpenClawProContextWaitsForAll = options.waitForAllConfiguredWorkspaces === true;
+  ensureOpenClawProContextPromise = runEnsureOpenClawProContext(options).finally(() => {
+    ensureOpenClawProContextPromise = null;
+    ensureOpenClawProContextWaitsForAll = false;
+  });
+  return ensureOpenClawProContextPromise;
+}
+
+async function runEnsureOpenClawProContext(options: EnsureOpenClawProContextOptions): Promise<void> {
+  let result = await mergeOpenClawProContextOnce(options);
+  if (result.retryableMissing === 0) {
+    await removeChatFirstBootstrapFiles();
+    if (result.missing > 0) {
+      logger.debug(`OpenClawPro context merge skipped ${result.missing} non-ready file(s)`);
+    }
+    return;
+  }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     await new Promise((r) => setTimeout(r, RETRY_INTERVAL_MS));
-    skipped = await mergeOpenClawProContextOnce();
-    if (skipped === 0) {
+    result = await mergeOpenClawProContextOnce(options);
+    if (result.retryableMissing === 0) {
+      await removeChatFirstBootstrapFiles();
       logger.info(`OpenClawPro context merge completed after ${attempt} retry(ies)`);
       return;
     }
-    logger.debug(`OpenClawPro context merge: ${skipped} file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
+    logger.debug(`OpenClawPro context merge: ${result.retryableMissing} startup file(s) still missing (retry ${attempt}/${MAX_RETRIES})`);
   }
 
-  logger.warn(`OpenClawPro context merge: ${skipped} file(s) still missing after ${MAX_RETRIES} retries`);
+  logger.warn(`OpenClawPro context merge: ${result.retryableMissing} startup file(s) still missing after ${MAX_RETRIES} retries`);
+  await removeChatFirstBootstrapFiles();
 }

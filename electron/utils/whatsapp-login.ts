@@ -5,18 +5,31 @@ import { EventEmitter } from 'events';
 import { existsSync, mkdirSync, rmSync, readdirSync } from 'fs';
 import { deflateSync } from 'zlib';
 import { getOpenClawDir, getOpenClawResolvedDir } from './paths';
+import { resolveOpenClawRuntimeModulePath } from './runtime-package-resolution';
 
 const require = createRequire(import.meta.url);
 
 // Resolve dependencies from OpenClaw package context (pnpm-safe)
 const openclawPath = getOpenClawDir();
 const openclawResolvedPath = getOpenClawResolvedDir();
+// Primary: resolves from openclaw's real (dereferenced) path in pnpm store.
+// In packaged builds this is the flat `resources/openclaw/node_modules/`.
 const openclawRequire = createRequire(join(openclawResolvedPath, 'package.json'));
+// Fallback: resolves from the symlink path (`node_modules/openclaw`).
+// In dev mode, Node walks UP from here to `<project>/node_modules/`, which
+// contains OpenClawPro's own devDependencies — packages that are NOT deps of openclaw
+// (e.g. @whiskeysockets/baileys) become resolvable through pnpm hoisting.
+const projectRequire = createRequire(join(openclawPath, 'package.json'));
 
 function resolveOpenClawPackageJson(packageName: string): string {
     const specifier = `${packageName}/package.json`;
+    // 1. Try openclaw's own deps (works in packaged mode + openclaw transitive deps)
     try {
         return openclawRequire.resolve(specifier);
+    } catch { /* fall through */ }
+    // 2. Fallback to project-level deps (works in dev mode for OpenClawPro devDependencies)
+    try {
+        return projectRequire.resolve(specifier);
     } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
         throw new Error(
@@ -28,7 +41,6 @@ function resolveOpenClawPackageJson(packageName: string): string {
 }
 
 const baileysPath = dirname(resolveOpenClawPackageJson('@whiskeysockets/baileys'));
-const qrcodeTerminalPath = dirname(resolveOpenClawPackageJson('qrcode-terminal'));
 
 // Load Baileys dependencies dynamically
 const {
@@ -37,10 +49,6 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion
 } = require(baileysPath);
-
-// Load QRCode dependencies dynamically
-const QRCodeModule = require(join(qrcodeTerminalPath, 'vendor', 'QRCode', 'index.js'));
-const QRErrorCorrectLevelModule = require(join(qrcodeTerminalPath, 'vendor', 'QRCode', 'QRErrorCorrectLevel.js'));
 
 // Types from Baileys (approximate since we don't have types for dynamic require)
 interface BaileysError extends Error {
@@ -55,12 +63,43 @@ type ConnectionState = {
     qr?: string;
 };
 
+type QrCodeMatrix = {
+    addData(input: string): void;
+    make(): void;
+    getModuleCount(): number;
+    isDark(row: number, col: number): boolean;
+};
+type QrCodeConstructor = new (typeNumber: number, errorCorrectionLevel: unknown) => QrCodeMatrix;
+type QrErrorCorrectLevelModule = {
+    L: unknown;
+};
+type QrRenderDeps = {
+    QRCode: QrCodeConstructor;
+    QRErrorCorrectLevel: QrErrorCorrectLevelModule;
+};
+
+let qrRenderDeps: QrRenderDeps | null = null;
+
+function getQrRenderDeps(): QrRenderDeps {
+    if (qrRenderDeps) {
+        return qrRenderDeps;
+    }
+
+    const qrCodeModulePath = resolveOpenClawRuntimeModulePath('qrcode-terminal/vendor/QRCode/index.js');
+    const qrErrorCorrectLevelPath = resolveOpenClawRuntimeModulePath(
+        'qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js',
+    );
+    qrRenderDeps = {
+        QRCode: require(qrCodeModulePath),
+        QRErrorCorrectLevel: require(qrErrorCorrectLevelPath),
+    };
+    return qrRenderDeps;
+}
+
 // --- QR Generation Logic (Adapted from OpenClaw) ---
 
-const QRCode = QRCodeModule;
-const QRErrorCorrectLevel = QRErrorCorrectLevelModule;
-
 function createQrMatrix(input: string) {
+    const { QRCode, QRErrorCorrectLevel } = getQrRenderDeps();
     const qr = new QRCode(-1, QRErrorCorrectLevel.L);
     qr.addData(input);
     qr.make();

@@ -23,6 +23,7 @@ const electronAPI = {
         'gateway:rpc',
         'gateway:httpProxy',
         'hostapi:fetch',
+        'hostapi:token',
         'gateway:health',
         'gateway:getControlUiUrl',
         // OpenClaw
@@ -99,7 +100,6 @@ const electronAPI = {
         'channel:listConfigured',
         'channel:setEnabled',
         'channel:validate',
-        'channel:validate',
         'channel:validateCredentials',
         // WhatsApp
         'channel:requestWhatsAppQr',
@@ -128,6 +128,13 @@ const electronAPI = {
         'file:stageBuffer',
         'media:getThumbnails',
         'media:saveImage',
+        // File preview (sandboxed read/write/list/tree)
+        'file:readText',
+        'file:readBinary',
+        'file:writeText',
+        'file:stat',
+        'file:listDir',
+        'file:listTree',
         // Chat send with media (reads staged files in main process)
         'chat:sendWithMedia',
         // Session management
@@ -154,6 +161,8 @@ const electronAPI = {
         'gateway:status-changed',
         'gateway:message',
         'gateway:notification',
+        'gateway:health-changed',
+        'gateway:presence-changed',
         'gateway:channel-status',
         'gateway:chat-message',
         'channel:whatsapp-qr',
@@ -180,8 +189,7 @@ const electronAPI = {
         'openclaw:cli-installed',
       ];
 
-      if (validChannels.includes(channel)) {
-        // Wrap the callback to strip the event
+      if (validChannels.includes(channel) || channel.startsWith('ext:')) {
         const subscription = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => {
           callback(...args);
         };
@@ -204,6 +212,8 @@ const electronAPI = {
         'gateway:status-changed',
         'gateway:message',
         'gateway:notification',
+        'gateway:health-changed',
+        'gateway:presence-changed',
         'gateway:channel-status',
         'gateway:chat-message',
         'channel:whatsapp-qr',
@@ -228,7 +238,7 @@ const electronAPI = {
         'oauth:error',
       ];
 
-      if (validChannels.includes(channel)) {
+      if (validChannels.includes(channel) || channel.startsWith('ext:')) {
         ipcRenderer.once(channel, (_event, ...args) => callback(...args));
         return;
       }

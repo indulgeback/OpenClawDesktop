@@ -894,9 +894,11 @@ function validateGatewayRpcParams(method: string, params: unknown): void {
   if (!params || typeof params !== 'object' || Array.isArray(params)) {
     throw new Error('gateway:rpc config.patch requires object params');
   }
+  const raw = (params as Record<string, unknown>).raw;
+  if (typeof raw === 'string' && raw.trim()) return;
   const patch = (params as Record<string, unknown>).patch;
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-    throw new Error('gateway:rpc config.patch requires object patch');
+    throw new Error('gateway:rpc config.patch requires raw string or object patch');
   }
 }
 
@@ -1061,3 +1063,120 @@ export async function invokeIpcWithRetry<T>(
 
   throw normalizeAppError(lastError);
 }
+
+// ── File preview wrappers ─────────────────────────────────────────────
+//
+// Thin typed wrappers over the sandboxed file:* IPC channels exposed by
+// the main process. Callers stay free of `invokeIpc('file:readText', ...)`
+// boilerplate and get exhaustive error codes.
+
+export type FilePreviewError =
+  | 'outsideSandbox'
+  | 'readOnlyRoot'
+  | 'tooLarge'
+  | 'binary'
+  | 'notFound'
+  | 'notDirectory'
+  | 'invalidContent'
+  | string;
+
+export interface ReadTextFileResult {
+  ok: boolean;
+  content?: string;
+  mimeType?: string;
+  size?: number;
+  /**
+   * Set by the main process when the resolved path lives in a read-only
+   * root (bundled skill, app resources, …).  The renderer should disable
+   * editing affordances when this is true even if the caller passes
+   * `readOnly={false}`.
+   */
+  readOnly?: boolean;
+  error?: FilePreviewError;
+}
+
+export interface ReadBinaryFileResult {
+  ok: boolean;
+  data?: Uint8Array;
+  mimeType?: string;
+  size?: number;
+  readOnly?: boolean;
+  error?: FilePreviewError;
+}
+
+export interface ReadBinaryFileOptions {
+  /** Optional override for the per-call ceiling (capped by the main-process limit). */
+  maxBytes?: number;
+}
+
+export interface WriteTextFileResult {
+  ok: boolean;
+  error?: FilePreviewError;
+}
+
+export interface StatFileResult {
+  ok: boolean;
+  size?: number;
+  mtime?: number;
+  isFile?: boolean;
+  isDir?: boolean;
+  readOnly?: boolean;
+  error?: FilePreviewError;
+}
+
+export interface ListDirEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size: number;
+}
+
+export interface ListDirResult {
+  ok: boolean;
+  entries?: ListDirEntry[];
+  error?: FilePreviewError;
+}
+
+export interface TreeNode {
+  name: string;
+  relPath: string;
+  absPath: string;
+  isDir: boolean;
+  size?: number;
+  mtime?: number;
+  children?: TreeNode[];
+}
+
+export interface ListTreeOptions {
+  maxDepth?: number;
+  maxNodes?: number;
+  includeHidden?: boolean;
+}
+
+export interface ListTreeResult {
+  ok: boolean;
+  root?: TreeNode;
+  truncated?: boolean;
+  error?: FilePreviewError;
+}
+
+export const readTextFile = (path: string): Promise<ReadTextFileResult> =>
+  invokeIpc<ReadTextFileResult>('file:readText', path);
+
+export const readBinaryFile = (
+  path: string,
+  opts?: ReadBinaryFileOptions,
+): Promise<ReadBinaryFileResult> =>
+  invokeIpc<ReadBinaryFileResult>('file:readBinary', path, opts);
+
+export const writeTextFile = (path: string, content: string): Promise<WriteTextFileResult> =>
+  invokeIpc<WriteTextFileResult>('file:writeText', path, content);
+
+export const statFile = (path: string): Promise<StatFileResult> =>
+  invokeIpc<StatFileResult>('file:stat', path);
+
+export const listDir = (path: string): Promise<ListDirResult> =>
+  invokeIpc<ListDirResult>('file:listDir', path);
+
+export const listTree = (path: string, opts?: ListTreeOptions): Promise<ListTreeResult> =>
+  invokeIpc<ListTreeResult>('file:listTree', path, opts);

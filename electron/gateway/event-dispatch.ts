@@ -23,7 +23,18 @@ export function dispatchProtocolEvent(
       break;
     }
     case 'channel.status':
+    case 'channel.status_changed':
       emitter.emit('channel:status', payload as { channelId: string; status: string });
+      break;
+    case 'gateway.ready':
+    case 'ready':
+      emitter.emit('gateway:ready', payload);
+      break;
+    case 'health':
+      emitter.emit('gateway:health', payload);
+      break;
+    case 'presence':
+      emitter.emit('gateway:presence', payload);
       break;
     default:
       emitter.emit('notification', { method: event, params: payload });

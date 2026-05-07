@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { deflateSync } from 'node:zlib';
 import { normalizeOpenClawAccountId } from './channel-alias';
-import { getOpenClawResolvedDir } from './paths';
+import { resolveOpenClawRuntimeModulePath } from './runtime-package-resolution';
 
 export const DEFAULT_WECHAT_BASE_URL = 'https://ilinkai.weixin.qq.com';
 const DEFAULT_ILINK_BOT_TYPE = '3';
@@ -18,9 +18,22 @@ const WECHAT_STATE_DIR = join(OPENCLAW_DIR, 'openclaw-weixin');
 const WECHAT_ACCOUNT_INDEX_FILE = join(WECHAT_STATE_DIR, 'accounts.json');
 const WECHAT_ACCOUNTS_DIR = join(WECHAT_STATE_DIR, 'accounts');
 const require = createRequire(import.meta.url);
+
+type QrCodeMatrix = {
+  addData(input: string): void;
+  make(): void;
+  getModuleCount(): number;
+  isDark(row: number, col: number): boolean;
+};
+
+type QrCodeConstructor = new (typeNumber: number, errorCorrectionLevel: unknown) => QrCodeMatrix;
+type QrErrorCorrectLevelModule = {
+  L: unknown;
+};
+
 type QrRenderDeps = {
-  QRCode: typeof import('qrcode-terminal/vendor/QRCode/index.js');
-  QRErrorCorrectLevel: typeof import('qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js');
+  QRCode: QrCodeConstructor;
+  QRErrorCorrectLevel: QrErrorCorrectLevelModule;
 };
 
 let qrRenderDeps: QrRenderDeps | null = null;
@@ -30,11 +43,13 @@ function getQrRenderDeps(): QrRenderDeps {
     return qrRenderDeps;
   }
 
-  const openclawRequire = createRequire(join(getOpenClawResolvedDir(), 'package.json'));
-  const qrcodeTerminalPath = dirname(openclawRequire.resolve('qrcode-terminal/package.json'));
+  const qrCodeModulePath = resolveOpenClawRuntimeModulePath('qrcode-terminal/vendor/QRCode/index.js');
+  const qrErrorCorrectLevelPath = resolveOpenClawRuntimeModulePath(
+    'qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js',
+  );
   qrRenderDeps = {
-    QRCode: require(join(qrcodeTerminalPath, 'vendor', 'QRCode', 'index.js')),
-    QRErrorCorrectLevel: require(join(qrcodeTerminalPath, 'vendor', 'QRCode', 'QRErrorCorrectLevel.js')),
+    QRCode: require(qrCodeModulePath),
+    QRErrorCorrectLevel: require(qrErrorCorrectLevelPath),
   };
   return qrRenderDeps;
 }

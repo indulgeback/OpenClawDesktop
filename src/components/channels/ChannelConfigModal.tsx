@@ -3,8 +3,6 @@ import {
   X,
   Loader2,
   QrCode,
-  ExternalLink,
-  BookOpen,
   Eye,
   EyeOff,
   Check,
@@ -32,7 +30,11 @@ import {
   type ChannelMeta,
   type ChannelConfigField,
 } from '@/types/channel';
-import { buildQrChannelEventName, usesPluginManagedQrAccounts } from '@/lib/channel-alias';
+import {
+  buildQrChannelEventName,
+  isCanonicalOpenClawAccountId,
+  usesPluginManagedQrAccounts,
+} from '@/lib/channel-alias';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import telegramIcon from '@/assets/channels/telegram.svg';
@@ -58,12 +60,10 @@ interface ChannelConfigModalProps {
   onChannelSaved?: (channelType: ChannelType) => void | Promise<void>;
 }
 
-const inputClasses =
-  'h-[44px] rounded-xl font-mono text-[13px] bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40';
-const labelClasses = 'text-[14px] text-foreground/80 font-bold';
-const outlineButtonClasses =
-  'h-9 text-[13px] font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground';
-const primaryButtonClasses = 'h-9 text-[13px] font-medium rounded-full px-4 shadow-none';
+const inputClasses = 'h-[44px] rounded-xl font-mono text-meta bg-surface-input border-black/10 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-500 shadow-sm transition-all text-foreground placeholder:text-foreground/40';
+const labelClasses = 'text-sm text-foreground/80 font-bold';
+const outlineButtonClasses = 'h-9 text-meta font-medium rounded-full px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 shadow-none text-foreground/80 hover:text-foreground';
+const primaryButtonClasses = 'h-9 text-meta font-medium rounded-full px-4 shadow-none';
 
 export function ChannelConfigModal({
   initialSelectedType = null,
@@ -84,6 +84,7 @@ export function ChannelConfigModal({
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [channelName, setChannelName] = useState('');
   const [accountIdInput, setAccountIdInput] = useState(accountId || '');
+  const [accountIdError, setAccountIdError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -106,6 +107,10 @@ export function ChannelConfigModal({
     : showAccountIdEditor
       ? accountIdInput.trim()
       : (accountId ?? (agentId ? (agentId === 'main' ? 'default' : agentId) : undefined));
+  const shouldLoadExistingConfig = Boolean(
+    selectedType && allowExistingConfig && configuredTypes.includes(selectedType)
+  );
+  const accountIdForConfigLoad = shouldLoadExistingConfig ? resolvedAccountId : undefined;
 
   useEffect(() => {
     setSelectedType(initialSelectedType);
@@ -113,6 +118,7 @@ export function ChannelConfigModal({
 
   useEffect(() => {
     setAccountIdInput(accountId || '');
+    setAccountIdError(null);
   }, [accountId]);
 
   useEffect(() => {
@@ -123,10 +129,10 @@ export function ChannelConfigModal({
       setValidationResult(null);
       setQrCode(null);
       setConnecting(false);
+      setAccountIdError(null);
       return;
     }
 
-    const shouldLoadExistingConfig = allowExistingConfig && configuredTypes.includes(selectedType);
     if (!shouldLoadExistingConfig) {
       setConfigValues({});
       setIsExistingConfig(false);
@@ -149,9 +155,7 @@ export function ChannelConfigModal({
 
     (async () => {
       try {
-        const accountParam = resolvedAccountId
-          ? `?accountId=${encodeURIComponent(resolvedAccountId)}`
-          : '';
+        const accountParam = accountIdForConfigLoad ? `?accountId=${encodeURIComponent(accountIdForConfigLoad)}` : '';
         const result = await hostApiFetch<{ success: boolean; values?: Record<string, string> }>(
           `/api/channels/config/${encodeURIComponent(selectedType)}${accountParam}`
         );
@@ -177,14 +181,7 @@ export function ChannelConfigModal({
     return () => {
       cancelled = true;
     };
-  }, [
-    allowExistingConfig,
-    configuredTypes,
-    initialConfigValues,
-    resolvedAccountId,
-    selectedType,
-    showChannelName,
-  ]);
+  }, [accountIdForConfigLoad, initialConfigValues, selectedType, shouldLoadExistingConfig, showChannelName]);
 
   useEffect(() => {
     if (selectedType && !loadingConfig && showChannelName && firstInputRef.current) {
@@ -389,7 +386,16 @@ export function ChannelConfigModal({
       if (showAccountIdEditor) {
         const nextAccountId = accountIdInput.trim();
         if (!nextAccountId) {
-          toast.error(t('account.invalidId'));
+          const message = t('account.invalidId');
+          setAccountIdError(message);
+          toast.error(message);
+          setConnecting(false);
+          return;
+        }
+        if (!isCanonicalOpenClawAccountId(nextAccountId)) {
+          const message = t('account.invalidCanonicalId');
+          setAccountIdError(message);
+          toast.error(message);
           setConnecting(false);
           return;
         }
@@ -397,10 +403,13 @@ export function ChannelConfigModal({
           (id) => id === nextAccountId && id !== (accountId || '').trim()
         );
         if (duplicateExists) {
-          toast.error(t('account.accountIdExists', { accountId: nextAccountId }));
+          const message = t('account.accountIdExists', { accountId: nextAccountId });
+          setAccountIdError(message);
+          toast.error(message);
           setConnecting(false);
           return;
         }
+        setAccountIdError(null);
       }
 
       if (meta.connectionType === 'qr') {
@@ -481,20 +490,6 @@ export function ChannelConfigModal({
     }
   };
 
-  const openDocs = () => {
-    if (!meta?.docsUrl) return;
-    const url = t(meta.docsUrl);
-    try {
-      if (window.electron?.openExternal) {
-        window.electron.openExternal(url);
-      } else {
-        window.open(url, '_blank');
-      }
-    } catch {
-      window.open(url, '_blank');
-    }
-  };
-
   const isFormValid = () => {
     if (!meta) return false;
     return meta.configFields
@@ -520,7 +515,7 @@ export function ChannelConfigModal({
       }}
     >
       <Card
-        className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border-0 shadow-2xl bg-[#f3f1e9] dark:bg-card overflow-hidden"
+        className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border-0 shadow-2xl bg-surface-modal overflow-hidden"
         onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
@@ -533,7 +528,7 @@ export function ChannelConfigModal({
                   : t('dialog.configureTitle', { name: CHANNEL_NAMES[selectedType] })
                 : t('dialog.addTitle')}
             </CardTitle>
-            <CardDescription className="text-[15px] mt-1 text-foreground/70">
+            <CardDescription className="text-sm mt-1 text-foreground/70">
               {selectedType && isExistingConfig
                 ? t('dialog.existingDesc')
                 : meta
@@ -561,7 +556,7 @@ export function ChannelConfigModal({
                     key={type}
                     onClick={() => setSelectedType(type)}
                     className={cn(
-                      'group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-[#eeece3] dark:bg-muted shadow-sm',
+                      'group flex items-start gap-4 p-4 rounded-2xl transition-all text-left border relative overflow-hidden bg-surface-input shadow-sm',
                       isConfigured
                         ? 'border-green-500/40 bg-green-500/5 dark:bg-green-500/10'
                         : 'border-black/5 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5'
@@ -572,29 +567,25 @@ export function ChannelConfigModal({
                     </div>
                     <div className="flex flex-col flex-1 min-w-0 py-0.5 mt-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-[16px] font-semibold text-foreground truncate">
-                          {channelMeta.name}
-                        </p>
+                        <p className="text-base font-semibold text-foreground truncate">{channelMeta.name}</p>
                         {channelMeta.isPlugin && (
                           <Badge
                             variant="secondary"
-                            className="font-mono text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
+                            className="font-mono text-2xs font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border-0 shadow-none text-foreground/70"
                           >
                             {t('pluginBadge')}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[13.5px] text-muted-foreground line-clamp-2 leading-[1.5]">
+                      <p className="text-sm text-muted-foreground line-clamp-2 leading-[1.5]">
                         {t(channelMeta.description.replace('channels:', ''))}
                       </p>
-                      <p className="text-[12px] font-medium text-muted-foreground/80 mt-2">
-                        {channelMeta.connectionType === 'qr'
-                          ? t('dialog.qrCode')
-                          : t('dialog.token')}
+                      <p className="text-xs font-medium text-muted-foreground/80 mt-2">
+                        {channelMeta.connectionType === 'qr' ? t('dialog.qrCode') : t('dialog.token')}
                       </p>
                     </div>
                     {isConfigured && (
-                      <Badge className="absolute top-3 right-3 text-[10px] font-medium rounded-full bg-green-600 hover:bg-green-600">
+                      <Badge className="absolute top-3 right-3 text-2xs font-medium rounded-full bg-green-600 hover:bg-green-600">
                         {t('configuredBadge')}
                       </Badge>
                     )}
@@ -604,22 +595,16 @@ export function ChannelConfigModal({
             </div>
           ) : qrCode ? (
             <div className="text-center space-y-6">
-              <div className="bg-[#eeece3] dark:bg-muted p-4 rounded-3xl inline-block shadow-sm border border-black/10 dark:border-white/10">
-                {qrCode.startsWith('data:image') ||
-                qrCode.startsWith('http://') ||
-                qrCode.startsWith('https://') ? (
-                  <img
-                    src={qrCode}
-                    alt="Scan QR Code"
-                    className="w-64 h-64 object-contain rounded-2xl"
-                  />
+              <div className="bg-surface-input p-4 rounded-3xl inline-block shadow-sm border border-black/10 dark:border-white/10">
+                {qrCode.startsWith('data:image') || qrCode.startsWith('http://') || qrCode.startsWith('https://') ? (
+                  <img src={qrCode} alt="Scan QR Code" className="w-64 h-64 object-contain rounded-2xl" />
                 ) : (
                   <div className="w-64 h-64 bg-white dark:bg-background rounded-2xl flex items-center justify-center">
                     <QrCode className="h-32 w-32 text-gray-400" />
                   </div>
                 )}
               </div>
-              <p className="text-[14px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t('dialog.scanQR', { name: meta?.name })}
               </p>
               <div className="flex justify-center gap-2">
@@ -636,26 +621,24 @@ export function ChannelConfigModal({
               </div>
             </div>
           ) : loadingConfig ? (
-            <div className="flex items-center justify-center py-10 rounded-2xl bg-[#eeece3] dark:bg-muted border border-black/10 dark:border-white/10">
+            <div className="flex items-center justify-center py-10 rounded-2xl bg-surface-input border border-black/10 dark:border-white/10">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-[14px] text-muted-foreground">
-                {t('dialog.loadingConfig')}
-              </span>
+              <span className="ml-2 text-sm text-muted-foreground">{t('dialog.loadingConfig')}</span>
             </div>
           ) : (
             <div className="space-y-6">
               {isExistingConfig && (
-                <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-4 rounded-2xl text-[13.5px] flex items-center gap-2 border border-blue-500/20">
+                <div className="bg-blue-500/10 text-blue-600 dark:text-blue-400 p-4 rounded-2xl text-sm flex items-center gap-2 border border-blue-500/20">
                   <CheckCircle className="h-4 w-4 shrink-0" />
                   <span>{t('dialog.existingHint')}</span>
                 </div>
               )}
 
-              <div className="bg-[#eeece3] dark:bg-muted p-4 rounded-2xl space-y-4 shadow-sm border border-black/10 dark:border-white/10">
+              <div className="bg-surface-input p-4 rounded-2xl space-y-4 shadow-sm border border-black/10 dark:border-white/10">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className={labelClasses}>{t('dialog.howToConnect')}</p>
-                    <p className="text-[13px] text-muted-foreground mt-1">
+                    <p className="text-meta text-muted-foreground mt-1">
                       {meta ? t(meta.description.replace('channels:', '')) : ''}
                     </p>
                   </div>
@@ -669,7 +652,7 @@ export function ChannelConfigModal({
                     <ExternalLink className="h-3 w-3 ml-1" />
                   </Button> */}
                 </div>
-                <ol className="list-decimal pl-5 text-[13px] text-muted-foreground leading-relaxed space-y-1.5">
+                <ol className="list-decimal pl-5 text-meta text-muted-foreground leading-relaxed space-y-1.5">
                   {meta?.instructions.map((instruction, index) => (
                     <li key={index}>{t(instruction)}</li>
                   ))}
@@ -700,11 +683,20 @@ export function ChannelConfigModal({
                   <Input
                     id="account-id"
                     value={accountIdInput}
-                    onChange={(event) => setAccountIdInput(event.target.value)}
+                    onChange={(event) => {
+                      setAccountIdInput(event.target.value);
+                      if (accountIdError) {
+                        setAccountIdError(null);
+                      }
+                    }}
                     placeholder={t('account.customIdPlaceholder')}
-                    className={inputClasses}
+                    className={cn(inputClasses, accountIdError && 'border-destructive/50 focus-visible:ring-destructive/30')}
                   />
-                  <p className="text-[12px] text-muted-foreground">{t('account.customIdHint')}</p>
+                  {accountIdError ? (
+                    <p className="text-xs text-destructive">{accountIdError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{t('account.customIdHint')}</p>
+                  )}
                 </div>
               )}
 
@@ -865,7 +857,7 @@ function ChannelLogo({ type }: { type: ChannelType }) {
     case 'qqbot':
       return <img src={qqIcon} alt="QQ" className="w-[22px] h-[22px] dark:invert" />;
     default:
-      return <span className="text-[22px]">{CHANNEL_ICONS[type] || '💬'}</span>;
+      return <span className="text-xl">{CHANNEL_ICONS[type] || '💬'}</span>;
   }
 }
 
@@ -894,17 +886,19 @@ function ConfigField({ field, value, onChange, showSecret, onToggleSecret }: Con
             variant="outline"
             size="icon"
             onClick={onToggleSecret}
-            className="h-[44px] w-[44px] rounded-xl bg-[#eeece3] dark:bg-muted border-black/10 dark:border-white/10 text-muted-foreground hover:text-foreground shrink-0 shadow-sm"
+            className="h-[44px] w-[44px] rounded-xl bg-surface-input border-black/10 dark:border-white/10 text-muted-foreground hover:text-foreground shrink-0 shadow-sm"
           >
             {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>
         )}
       </div>
       {field.description && (
-        <p className="text-[13px] text-muted-foreground leading-relaxed">{t(field.description)}</p>
+        <p className="text-meta text-muted-foreground leading-relaxed">
+          {t(field.description)}
+        </p>
       )}
       {field.envVar && (
-        <p className="text-[12px] text-muted-foreground/70 font-mono">
+        <p className="text-xs text-muted-foreground/70 font-mono">
           {t('dialog.envVar', { var: field.envVar })}
         </p>
       )}

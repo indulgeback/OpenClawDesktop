@@ -102,12 +102,107 @@ describe('agent config lifecycle', () => {
     );
   });
 
+  it('exposes effective and override model refs in the snapshot', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: {
+            primary: 'moonshot/kimi-k2.6',
+          },
+        },
+        list: [
+          { id: 'main', name: 'Main', default: true },
+          { id: 'coder', name: 'Coder', model: { primary: 'ark/ark-code-latest' } },
+        ],
+      },
+    });
+
+    const { listAgentsSnapshot } = await import('@electron/utils/agent-config');
+    const snapshot = await listAgentsSnapshot();
+    const main = snapshot.agents.find((agent) => agent.id === 'main');
+    const coder = snapshot.agents.find((agent) => agent.id === 'coder');
+
+    expect(snapshot.defaultModelRef).toBe('moonshot/kimi-k2.6');
+    expect(main).toMatchObject({
+      modelRef: 'moonshot/kimi-k2.6',
+      overrideModelRef: null,
+      inheritedModel: true,
+      modelDisplay: 'kimi-k2.6',
+    });
+    expect(coder).toMatchObject({
+      modelRef: 'ark/ark-code-latest',
+      overrideModelRef: 'ark/ark-code-latest',
+      inheritedModel: false,
+      modelDisplay: 'ark-code-latest',
+    });
+  });
+
+  it('updates and clears per-agent model overrides', async () => {
+    await writeOpenClawJson({
+      agents: {
+        defaults: {
+          model: {
+            primary: 'moonshot/kimi-k2.6',
+          },
+        },
+        list: [
+          { id: 'main', name: 'Main', default: true },
+          { id: 'coder', name: 'Coder' },
+        ],
+      },
+    });
+
+    const { listAgentsSnapshot, updateAgentModel } = await import('@electron/utils/agent-config');
+
+    await updateAgentModel('coder', 'ark/ark-code-latest');
+    let config = await readOpenClawJson();
+    let coder = ((config.agents as { list: Array<{ id: string; model?: { primary?: string } }> }).list)
+      .find((agent) => agent.id === 'coder');
+    expect(coder?.model?.primary).toBe('ark/ark-code-latest');
+
+    let snapshot = await listAgentsSnapshot();
+    let snapshotCoder = snapshot.agents.find((agent) => agent.id === 'coder');
+    expect(snapshotCoder).toMatchObject({
+      modelRef: 'ark/ark-code-latest',
+      overrideModelRef: 'ark/ark-code-latest',
+      inheritedModel: false,
+    });
+
+    await updateAgentModel('coder', null);
+    config = await readOpenClawJson();
+    coder = ((config.agents as { list: Array<{ id: string; model?: unknown }> }).list)
+      .find((agent) => agent.id === 'coder');
+    expect(coder?.model).toBeUndefined();
+
+    snapshot = await listAgentsSnapshot();
+    snapshotCoder = snapshot.agents.find((agent) => agent.id === 'coder');
+    expect(snapshotCoder).toMatchObject({
+      modelRef: 'moonshot/kimi-k2.6',
+      overrideModelRef: null,
+      inheritedModel: true,
+    });
+  });
+
+  it('rejects invalid model ref formats when updating agent model', async () => {
+    await writeOpenClawJson({
+      agents: {
+        list: [{ id: 'main', name: 'Main', default: true }],
+      },
+    });
+
+    const { updateAgentModel } = await import('@electron/utils/agent-config');
+
+    await expect(updateAgentModel('main', 'invalid-model-ref')).rejects.toThrow(
+      'modelRef must be in "provider/model" format',
+    );
+  });
+
   it('deletes the config entry, bindings, runtime directory, and managed workspace for a removed agent', async () => {
     await writeOpenClawJson({
       agents: {
         defaults: {
           model: {
-            primary: 'custom-custom27/MiniMax-M2.5',
+            primary: 'custom-custom27/MiniMax-M2.7',
             fallbacks: [],
           },
         },
@@ -284,7 +379,7 @@ describe('agent config lifecycle', () => {
     expect(snapshot.channelAccountOwners['telegram:default']).toBe('main');
   });
 
-  it('replaces previous account binding for the same agent and channel', async () => {
+  it('keeps sibling account bindings for the same agent and channel', async () => {
     await writeOpenClawJson({
       agents: {
         list: [
@@ -309,8 +404,38 @@ describe('agent config lifecycle', () => {
     await assignChannelAccountToAgent('main', 'feishu', 'alt');
 
     const snapshot = await listAgentsSnapshot();
-    expect(snapshot.channelAccountOwners['feishu:default']).toBeUndefined();
+    expect(snapshot.channelAccountOwners['feishu:default']).toBe('main');
     expect(snapshot.channelAccountOwners['feishu:alt']).toBe('main');
+  });
+
+  it('preserves original agentId casing when persisting bindings', async () => {
+    await writeOpenClawJson({
+      agents: {
+        list: [
+          { id: 'MainAgent', name: 'Main Agent', default: true },
+        ],
+      },
+      channels: {
+        feishu: {
+          enabled: true,
+          accounts: {
+            default: { enabled: true, appId: 'main-app' },
+          },
+        },
+      },
+    });
+
+    const { assignChannelAccountToAgent } = await import('@electron/utils/agent-config');
+
+    await assignChannelAccountToAgent('MainAgent', 'feishu', 'default');
+
+    const config = await readOpenClawJson();
+    expect(config.bindings).toEqual([
+      {
+        agentId: 'MainAgent',
+        match: { channel: 'feishu', accountId: 'default' },
+      },
+    ]);
   });
 
   it('keeps a single owner for the same channel account', async () => {
@@ -362,5 +487,26 @@ describe('agent config lifecycle', () => {
     const snapshot = await listAgentsSnapshot();
     expect(snapshot.channelAccountOwners['feishu:default']).toBeUndefined();
     expect(snapshot.channelAccountOwners['telegram:default']).toBe('main');
+  });
+
+  it('avoids numeric-only ids when creating agents from CJK names', async () => {
+    await writeOpenClawJson({
+      agents: {
+        list: [{ id: 'main', name: 'Main', default: true }],
+      },
+    });
+
+    const { createAgent, listAgentsSnapshot } = await import('@electron/utils/agent-config');
+
+    await createAgent('测试2');
+    await createAgent('测试1');
+
+    const snapshot = await listAgentsSnapshot();
+    const agentIds = snapshot.agents.map((agent) => agent.id);
+
+    expect(agentIds).toContain('agent');
+    expect(agentIds).toContain('agent-2');
+    expect(agentIds).not.toContain('2');
+    expect(agentIds).not.toContain('1');
   });
 });

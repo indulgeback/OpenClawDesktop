@@ -6,9 +6,10 @@ export const PROVIDER_TYPES = [
   'ark',
   'moonshot',
   'siliconflow',
+  'deepseek',
   'minimax-portal',
   'minimax-portal-cn',
-  'qwen-portal',
+  'modelstudio',
   'ollama',
   'custom',
 ] as const;
@@ -21,9 +22,10 @@ export const BUILTIN_PROVIDER_TYPES = [
   'ark',
   'moonshot',
   'siliconflow',
+  'deepseek',
   'minimax-portal',
   'minimax-portal-cn',
-  'qwen-portal',
+  'modelstudio',
   'ollama',
 ] as const;
 

@@ -1,4 +1,11 @@
-import { clearHistoryPoll, setLastChatEventAt } from './helpers';
+import {
+  clearHistoryPoll,
+  getLastAbortedRunId,
+  getMessageStopReason,
+  queueBlockedRunEvent,
+  setLastAbortedRunId,
+  setLastChatEventAt,
+} from './helpers';
 import type { ChatGet, ChatSet, RuntimeActions } from './store-api';
 import { handleRuntimeEventState } from './runtime-event-handlers';
 
@@ -16,15 +23,37 @@ export function createRuntimeEventActions(set: ChatSet, get: ChatGet): Pick<Runt
       // Only process events for the active run (or if no active run set)
       if (activeRunId && runId && runId !== activeRunId) return;
 
+      // Reject lingering events from a run that the user explicitly aborted.
+      // The 'aborted' confirmation event is allowed through to finalize state.
+      // '*' is a wildcard meaning "abort was requested before we knew the runId".
+      const lastAbortedRunId = getLastAbortedRunId();
+      if (lastAbortedRunId && runId && (lastAbortedRunId === '*' || runId === lastAbortedRunId)) {
+        if (eventState === 'aborted' && lastAbortedRunId === '*') {
+          // Gateway confirmed which run was aborted. Narrow the wildcard so
+          // later unrelated runs can be adopted while this run stays blocked.
+          setLastAbortedRunId(runId);
+        }
+        // Let the 'aborted' event fall through to handleRuntimeEventState
+        // which properly clears all state.  Other wildcard-blocked events may
+        // belong to a newer send whose runId has not returned yet, so keep a
+        // bounded queue and replay only if that runId becomes the active run.
+        if (eventState !== 'aborted') {
+          if (lastAbortedRunId === '*' && !activeRunId && get().sending) {
+            queueBlockedRunEvent(runId, event);
+          }
+          return;
+        }
+      }
+
       setLastChatEventAt(Date.now());
 
       // Defensive: if state is missing but we have a message, try to infer state.
       let resolvedState = eventState;
       if (!resolvedState && event.message && typeof event.message === 'object') {
         const msg = event.message as Record<string, unknown>;
-        const stopReason = msg.stopReason ?? msg.stop_reason;
+        const stopReason = getMessageStopReason(msg);
         if (stopReason) {
-          resolvedState = 'final';
+          resolvedState = stopReason === 'error' ? 'error' : 'final';
         } else if (msg.role || msg.content) {
           resolvedState = 'delta';
         }
@@ -42,7 +71,7 @@ export function createRuntimeEventActions(set: ChatSet, get: ChatGet): Pick<Runt
         // show loading/streaming in the app when this session has an active run.
         const { sending } = get();
         if (!sending && runId) {
-          set({ sending: true, activeRunId: runId, error: null });
+          set({ sending: true, activeRunId: runId, error: null, runError: null });
         }
       }
 

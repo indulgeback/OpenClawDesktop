@@ -30,7 +30,15 @@ async function readConfig(): Promise<Record<string, unknown>> {
  * Standalone mirror of the sanitization logic in openclaw-auth.ts.
  * Uses the same blocklist approach as the production code.
  */
-async function sanitizeConfig(filePath: string): Promise<boolean> {
+async function sanitizeConfig(
+  filePath: string,
+  bundledPlugins?: {
+    all: string[];
+    enabledByDefault: string[];
+    providersByPluginId?: Record<string, string[]>;
+    preserveIds?: string[];
+  },
+): Promise<boolean> {
   let raw: string;
   try {
     raw = await readFile(filePath, 'utf-8');
@@ -40,6 +48,23 @@ async function sanitizeConfig(filePath: string): Promise<boolean> {
 
   const config = JSON.parse(raw) as Record<string, unknown>;
   let modified = false;
+  const BUILTIN_CHANNEL_IDS = new Set([
+    'discord',
+    'telegram',
+    'whatsapp',
+    'slack',
+    'signal',
+    'imessage',
+    'matrix',
+    'line',
+    'msteams',
+    'googlechat',
+    'mattermost',
+    'qqbot',
+  ]);
+  const BUNDLED_ALLOWLIST_PRESERVE_IDS = new Set(
+    bundledPlugins?.preserveIds ?? ['browser', 'acpx', 'memory-core'],
+  );
 
   /** Non-throwing async existence check. */
   async function fileExists(p: string): Promise<boolean> {
@@ -104,6 +129,182 @@ async function sanitizeConfig(filePath: string): Promise<boolean> {
         }
       }
     }
+
+    const allow = Array.isArray(pluginsObj.allow) ? [...pluginsObj.allow as string[]] : [];
+    const entries = (
+      pluginsObj.entries && typeof pluginsObj.entries === 'object' && !Array.isArray(pluginsObj.entries)
+        ? { ...(pluginsObj.entries as Record<string, unknown>) }
+        : {}
+    ) as Record<string, unknown>;
+
+    const acpxEntry = (entries.acpx && typeof entries.acpx === 'object' && !Array.isArray(entries.acpx))
+      ? { ...(entries.acpx as Record<string, unknown>) }
+      : null;
+    const acpxConfig = (acpxEntry?.config && typeof acpxEntry.config === 'object' && !Array.isArray(acpxEntry.config))
+      ? { ...(acpxEntry.config as Record<string, unknown>) }
+      : null;
+    if (acpxConfig) {
+      for (const legacyKey of ['command', 'expectedVersion'] as const) {
+        if (legacyKey in acpxConfig) {
+          delete acpxConfig[legacyKey];
+          modified = true;
+        }
+      }
+      acpxEntry!.config = acpxConfig;
+      entries.acpx = acpxEntry!;
+      pluginsObj.entries = entries;
+    }
+
+    const installs = (
+      pluginsObj.installs && typeof pluginsObj.installs === 'object' && !Array.isArray(pluginsObj.installs)
+        ? { ...(pluginsObj.installs as Record<string, unknown>) }
+        : {}
+    ) as Record<string, unknown>;
+    const acpxInstall = (installs.acpx && typeof installs.acpx === 'object' && !Array.isArray(installs.acpx))
+      ? installs.acpx as Record<string, unknown>
+      : null;
+    if (acpxInstall) {
+      const currentBundledAcpxDir = join(tempDir, 'node_modules', 'openclaw', 'dist', 'extensions', 'acpx').replace(/\\/g, '/');
+      const sourcePath = typeof acpxInstall.sourcePath === 'string' ? acpxInstall.sourcePath : '';
+      const installPath = typeof acpxInstall.installPath === 'string' ? acpxInstall.installPath : '';
+      const normalizedSourcePath = sourcePath.replace(/\\/g, '/');
+      const normalizedInstallPath = installPath.replace(/\\/g, '/');
+      const pointsAtDifferentBundledTree = [normalizedSourcePath, normalizedInstallPath].some(
+        (candidate) => candidate.includes('/node_modules/.pnpm/openclaw@') && candidate !== currentBundledAcpxDir,
+      );
+      const pointsAtMissingPath = (sourcePath && !(await fileExists(sourcePath)))
+        || (installPath && !(await fileExists(installPath)));
+
+      if (pointsAtDifferentBundledTree || pointsAtMissingPath) {
+        delete installs.acpx;
+        modified = true;
+      }
+
+      if (Object.keys(installs).length > 0) {
+        pluginsObj.installs = installs;
+      } else {
+        delete pluginsObj.installs;
+      }
+    }
+
+    if ('whatsapp' in entries) {
+      delete entries.whatsapp;
+      pluginsObj.entries = entries;
+      modified = true;
+    }
+
+    const configuredBuiltIns = new Set<string>();
+    const channels = config.channels;
+    if (channels && typeof channels === 'object' && !Array.isArray(channels)) {
+      for (const [channelId, section] of Object.entries(channels as Record<string, Record<string, unknown>>)) {
+        if (!BUILTIN_CHANNEL_IDS.has(channelId)) continue;
+        if (!section || section.enabled === false) continue;
+        if (Object.keys(section).length > 0) {
+          configuredBuiltIns.add(channelId);
+        }
+      }
+    }
+
+    const activeProviders = new Set<string>();
+    const models = config.models as Record<string, unknown> | undefined;
+    const providers = models?.providers as Record<string, unknown> | undefined;
+    if (providers && typeof providers === 'object') {
+      for (const key of Object.keys(providers)) {
+        activeProviders.add(key);
+      }
+    }
+
+    const auth = config.auth as Record<string, unknown> | undefined;
+    const profiles = auth?.profiles as Record<string, unknown> | undefined;
+    if (profiles && typeof profiles === 'object') {
+      for (const entry of Object.values(profiles)) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+        const provider = typeof (entry as Record<string, unknown>).provider === 'string'
+          ? (entry as Record<string, unknown>).provider as string
+          : undefined;
+        if (provider) activeProviders.add(provider);
+      }
+    }
+
+    const pluginsEntries = pluginsObj.entries && typeof pluginsObj.entries === 'object' && !Array.isArray(pluginsObj.entries)
+      ? pluginsObj.entries as Record<string, unknown>
+      : {};
+    for (const [pluginId, meta] of Object.entries(pluginsEntries)) {
+      if (pluginId.endsWith('-auth') && (meta as Record<string, unknown>).enabled) {
+        activeProviders.add(pluginId.replace(/-auth$/, ''));
+      }
+    }
+
+    const agents = config.agents as Record<string, unknown> | undefined;
+    const defaults = agents?.defaults as Record<string, unknown> | undefined;
+    const modelConfig = defaults?.model as Record<string, unknown> | undefined;
+    const primaryModel = typeof modelConfig?.primary === 'string' ? modelConfig.primary : undefined;
+    if (primaryModel?.includes('/')) {
+      activeProviders.add(primaryModel.split('/')[0]);
+    }
+
+    // Mirror production logic: bundled provider plugins are only preserved when
+    // the provider is actually active, while OpenClawPro-critical bundled plugins are
+    // preserved via a small explicit list.
+    const bundledAll = new Set(bundledPlugins?.all ?? []);
+    const providersByPluginId = bundledPlugins?.providersByPluginId ?? {};
+    const explicitlyEnabledBundledPluginIds = Object.entries(pluginsEntries)
+      .filter(([pluginId, meta]) => bundledAll.has(pluginId) && (meta as Record<string, unknown>).enabled === true)
+      .map(([pluginId]) => pluginId);
+    const activeBundledProviderPluginIds = Object.keys(providersByPluginId).filter((pluginId) => {
+      if (activeProviders.has(pluginId)) return true;
+      return (providersByPluginId[pluginId] ?? []).some((providerId) => activeProviders.has(providerId));
+    });
+    const requiredBundledPluginIds = [...new Set([
+      ...BUNDLED_ALLOWLIST_PRESERVE_IDS,
+      ...activeBundledProviderPluginIds,
+      ...explicitlyEnabledBundledPluginIds,
+    ])].filter((pluginId) => bundledAll.has(pluginId));
+
+    const externalPluginIds = allow.filter(
+      (id) => !BUILTIN_CHANNEL_IDS.has(id) && !bundledAll.has(id),
+    );
+    const retainedBundledPluginIds = allow.filter((id) => requiredBundledPluginIds.includes(id));
+    const nextAllow = [...new Set([...externalPluginIds, ...retainedBundledPluginIds])];
+    if (nextAllow.length > 0) {
+      for (const channelId of configuredBuiltIns) {
+        if (!nextAllow.includes(channelId)) {
+          nextAllow.push(channelId);
+        }
+      }
+      for (const pluginId of requiredBundledPluginIds) {
+        if (!nextAllow.includes(pluginId)) {
+          nextAllow.push(pluginId);
+        }
+      }
+    }
+
+    if (JSON.stringify(nextAllow) !== JSON.stringify(allow)) {
+      if (nextAllow.length > 0) {
+        pluginsObj.allow = nextAllow;
+      } else {
+        delete pluginsObj.allow;
+      }
+      modified = true;
+    }
+
+    if (Array.isArray(pluginsObj.allow) && pluginsObj.allow.length === 0) {
+      delete pluginsObj.allow;
+      modified = true;
+    }
+    if (pluginsObj.entries && Object.keys(entries).length === 0) {
+      delete pluginsObj.entries;
+      modified = true;
+    }
+    const pluginKeysExcludingEnabled = Object.keys(pluginsObj).filter((key) => key !== 'enabled');
+    if (pluginsObj.enabled === true && pluginKeysExcludingEnabled.length === 0) {
+      delete pluginsObj.enabled;
+      modified = true;
+    }
+    if (Object.keys(pluginsObj).length === 0) {
+      delete config.plugins;
+      modified = true;
+    }
   }
 
   // Mirror: remove stale tools.web.search.kimi.apiKey when moonshot provider exists.
@@ -113,12 +314,36 @@ async function sanitizeConfig(filePath: string): Promise<boolean> {
     const web = (tools.web as Record<string, unknown> | undefined) || {};
     const search = (web.search as Record<string, unknown> | undefined) || {};
     const kimi = (search.kimi as Record<string, unknown> | undefined) || {};
-    if ('apiKey' in kimi) {
+    const plugins = Array.isArray(config.plugins)
+      ? { load: [...config.plugins] }
+      : ((config.plugins as Record<string, unknown> | undefined) || {});
+    const entries = (plugins.entries as Record<string, unknown> | undefined) || {};
+    const moonshot = (entries.moonshot as Record<string, unknown> | undefined) || {};
+    const moonshotConfig = (moonshot.config as Record<string, unknown> | undefined) || {};
+    const currentWebSearch = (moonshotConfig.webSearch as Record<string, unknown> | undefined) || {};
+    if (Object.keys(kimi).length > 0) {
       delete kimi.apiKey;
-      search.kimi = kimi;
-      web.search = search;
-      tools.web = web;
-      config.tools = tools;
+      moonshotConfig.webSearch = { ...kimi, ...currentWebSearch, baseUrl: 'https://api.moonshot.cn/v1' };
+      moonshot.config = moonshotConfig;
+      entries.moonshot = moonshot;
+      plugins.entries = entries;
+      config.plugins = plugins;
+      delete search.kimi;
+      if (Object.keys(search).length === 0) {
+        delete web.search;
+      } else {
+        web.search = search;
+      }
+      if (Object.keys(web).length === 0) {
+        delete tools.web;
+      } else {
+        tools.web = web;
+      }
+      if (Object.keys(tools).length === 0) {
+        delete config.tools;
+      } else {
+        config.tools = tools;
+      }
       modified = true;
     }
   }
@@ -275,7 +500,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     await writeConfig({
       skills: { enabled: true, entries: {} },
       channels: { discord: { token: 'abc', enabled: true } },
-      plugins: { entries: { whatsapp: { enabled: true } } },
+      plugins: { entries: { customPlugin: { enabled: true } } },
       gateway: { mode: 'local', auth: { token: 'xyz' } },
       agents: { defaults: { model: { primary: 'gpt-4' } } },
       models: { providers: { openai: { baseUrl: 'https://api.openai.com' } } },
@@ -289,12 +514,12 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     expect(result.skills).not.toHaveProperty('enabled');
     // All other sections unchanged
     expect(result.channels).toEqual({ discord: { token: 'abc', enabled: true } });
-    expect(result.plugins).toEqual({ entries: { whatsapp: { enabled: true } } });
+    expect(result.plugins).toEqual({ entries: { customPlugin: { enabled: true } } });
     expect(result.gateway).toEqual({ mode: 'local', auth: { token: 'xyz' } });
     expect(result.agents).toEqual({ defaults: { model: { primary: 'gpt-4' } } });
   });
 
-  it('removes tools.web.search.kimi.apiKey when moonshot provider exists', async () => {
+  it('migrates tools.web.search.kimi into plugins.entries.moonshot.config.webSearch when moonshot provider exists', async () => {
     await writeConfig({
       models: {
         providers: {
@@ -317,9 +542,44 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     expect(modified).toBe(true);
 
     const result = await readConfig();
-    const kimi = ((((result.tools as Record<string, unknown>).web as Record<string, unknown>).search as Record<string, unknown>).kimi as Record<string, unknown>);
-    expect(kimi).not.toHaveProperty('apiKey');
-    expect(kimi.baseUrl).toBe('https://api.moonshot.cn/v1');
+    const tools = (result.tools as Record<string, unknown> | undefined) || {};
+    const web = (tools.web as Record<string, unknown> | undefined) || {};
+    const search = (web.search as Record<string, unknown> | undefined) || {};
+    const moonshot = ((((result.plugins as Record<string, unknown>).entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+    expect(search).not.toHaveProperty('kimi');
+    expect(moonshot).not.toHaveProperty('apiKey');
+    expect(moonshot.baseUrl).toBe('https://api.moonshot.cn/v1');
+  });
+
+  it('preserves legacy plugins array while migrating moonshot web search config', async () => {
+    await writeConfig({
+      plugins: ['/tmp/custom-plugin.js'],
+      models: {
+        providers: {
+          moonshot: { baseUrl: 'https://api.moonshot.cn/v1', api: 'openai-completions' },
+        },
+      },
+      tools: {
+        web: {
+          search: {
+            kimi: {
+              baseUrl: 'https://api.moonshot.cn/v1',
+            },
+          },
+        },
+      },
+    });
+
+    const modified = await sanitizeConfig(configPath);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const load = plugins.load as string[];
+    const moonshot = ((((result.plugins as Record<string, unknown>).entries as Record<string, unknown>).moonshot as Record<string, unknown>).config as Record<string, unknown>).webSearch as Record<string, unknown>;
+
+    expect(load).toEqual(['/tmp/custom-plugin.js']);
+    expect(moonshot.baseUrl).toBe('https://api.moonshot.cn/v1');
   });
 
   it('keeps tools.web.search.kimi.apiKey when moonshot provider is absent', async () => {
@@ -359,7 +619,7 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
             '/another/missing/plugin/dir',
           ],
         },
-        entries: { whatsapp: { enabled: true } },
+        entries: { customPlugin: { enabled: true } },
       },
       gateway: { mode: 'local' },
     });
@@ -372,9 +632,38 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     const load = plugins.load as Record<string, unknown>;
     expect(load.paths).toEqual([]);
     // Other plugin config is preserved
-    expect(plugins.entries).toEqual({ whatsapp: { enabled: true } });
+    expect(plugins.entries).toEqual({ customPlugin: { enabled: true } });
     // Other top-level sections untouched
     expect(result.gateway).toEqual({ mode: 'local' });
+  });
+
+  it('keeps configured built-in channels in plugins.allow when external plugins are enabled', async () => {
+    await writeConfig({
+      plugins: {
+        enabled: true,
+        allow: ['whatsapp', 'customPlugin'],
+        entries: {
+          whatsapp: { enabled: true },
+          customPlugin: { enabled: true },
+        },
+      },
+      channels: {
+        discord: { enabled: true, token: 'abc' },
+      },
+    });
+
+    const modified = await sanitizeConfig(configPath);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    expect(result.channels).toEqual({ discord: { enabled: true, token: 'abc' } });
+    expect(result.plugins).toEqual({
+      enabled: true,
+      allow: ['customPlugin', 'discord'],
+      entries: {
+        customPlugin: { enabled: true },
+      },
+    });
   });
 
   it('removes bundled node_modules paths from plugins.load.paths', async () => {
@@ -443,6 +732,49 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     expect(load.paths).toEqual(['relative/plugin-path', './another-relative']);
   });
 
+  it('removes legacy acpx overrides and stale bundled install metadata', async () => {
+    await writeConfig({
+      plugins: {
+        entries: {
+          acpx: {
+            enabled: true,
+            config: {
+              permissionMode: 'approve-all',
+              nonInteractivePermissions: 'fail',
+              command: '/Users/example/project/node_modules/.pnpm/openclaw@2026.4.1/node_modules/openclaw/dist/extensions/acpx/node_modules/acpx/dist/cli.js',
+              expectedVersion: 'any',
+              pluginToolsMcpBridge: true,
+            },
+          },
+        },
+        installs: {
+          acpx: {
+            source: 'path',
+            spec: 'acpx',
+            sourcePath: '/Users/example/project/node_modules/.pnpm/openclaw@2026.4.1/node_modules/openclaw/dist/extensions/acpx',
+            installPath: '/Users/example/project/node_modules/.pnpm/openclaw@2026.4.1/node_modules/openclaw/dist/extensions/acpx',
+          },
+        },
+      },
+    });
+
+    const modified = await sanitizeConfig(configPath);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const entries = plugins.entries as Record<string, unknown>;
+    const acpx = entries.acpx as Record<string, unknown>;
+    const acpxConfig = acpx.config as Record<string, unknown>;
+
+    expect(acpxConfig).toEqual({
+      permissionMode: 'approve-all',
+      nonInteractivePermissions: 'fail',
+      pluginToolsMcpBridge: true,
+    });
+    expect(plugins).not.toHaveProperty('installs');
+  });
+
   it('does nothing when plugins.load.paths contains only valid paths', async () => {
     const original = {
       plugins: {
@@ -506,6 +838,125 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     await writeConfig(original);
 
     const modified = await sanitizeConfig(configPath);
+    expect(modified).toBe(false);
+  });
+
+  // ── bundled plugin allowlist reconciliation tests ──────────────
+
+  it('adds only required bundled plugins to plugins.allow when allowlist is non-empty', async () => {
+    await writeConfig({
+      plugins: {
+        allow: ['customPlugin'],
+        entries: { customPlugin: { enabled: true } },
+      },
+    });
+
+    const bundled = {
+      all: ['browser', 'acpx', 'memory-core', 'openai', 'anthropic', 'diffs'],
+      enabledByDefault: ['browser', 'acpx', 'openai', 'anthropic'],
+      providersByPluginId: {
+        openai: ['openai'],
+        anthropic: ['anthropic'],
+      },
+    };
+
+    const modified = await sanitizeConfig(configPath, bundled);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const allow = plugins.allow as string[];
+    expect(allow).toEqual(expect.arrayContaining(['customPlugin', 'browser', 'acpx', 'memory-core']));
+    expect(allow).not.toContain('openai');
+    expect(allow).not.toContain('anthropic');
+    expect(allow).not.toContain('diffs');
+  });
+
+  it('keeps active bundled provider plugins but removes stale bundled ones from allowlist', async () => {
+    await writeConfig({
+      models: {
+        providers: {
+          openai: {},
+        },
+      },
+      plugins: {
+        allow: ['customPlugin', 'unknown-plugin', 'old-bundled', 'browser'],
+      },
+    });
+
+    const bundled = {
+      all: ['browser', 'openai', 'old-bundled'],
+      enabledByDefault: ['browser', 'openai'],
+      providersByPluginId: {
+        openai: ['openai', 'openai-codex'],
+      },
+    };
+
+    const modified = await sanitizeConfig(configPath, bundled);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const allow = plugins.allow as string[];
+    expect(allow).toContain('customPlugin');
+    expect(allow).toContain('unknown-plugin');
+    expect(allow).toContain('browser');
+    expect(allow).toContain('openai');
+    expect(allow).not.toContain('old-bundled');
+  });
+
+  it('preserves explicitly enabled bundled plugins even when they are not enabledByDefault', async () => {
+    await writeConfig({
+      plugins: {
+        allow: ['customPlugin', 'diffs'],
+        entries: {
+          diffs: { enabled: true },
+        },
+      },
+    });
+
+    const bundled = {
+      all: ['browser', 'acpx', 'memory-core', 'diffs'],
+      enabledByDefault: ['browser', 'acpx'],
+    };
+
+    const modified = await sanitizeConfig(configPath, bundled);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const allow = plugins.allow as string[];
+    expect(allow).toEqual(expect.arrayContaining(['customPlugin', 'diffs', 'browser', 'acpx', 'memory-core']));
+  });
+
+  it('does not add bundled plugins when allowlist is empty (no external plugins)', async () => {
+    // When no external plugins exist, allowlist should be dropped entirely
+    await writeConfig({
+      plugins: {
+        allow: ['whatsapp'],  // built-in channel only
+      },
+    });
+
+    const bundled = {
+      all: ['browser', 'openai'],
+      enabledByDefault: ['browser', 'openai'],
+    };
+
+    const modified = await sanitizeConfig(configPath, bundled);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    // plugins.allow should be removed (only built-in, no external plugins)
+    expect(result.plugins).toBeUndefined();
+  });
+
+  it('does not modify config when no bundled plugins and no allowlist', async () => {
+    const original = {
+      gateway: { mode: 'local' },
+    };
+    await writeConfig(original);
+
+    const modified = await sanitizeConfig(configPath, { all: ['browser'], enabledByDefault: ['browser'] });
     expect(modified).toBe(false);
   });
 });

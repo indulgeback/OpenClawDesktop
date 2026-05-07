@@ -4,12 +4,51 @@ import { getOpenClawConfigDir } from '../../utils/paths';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 
+const SAFE_SESSION_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
 export async function handleSessionRoutes(
   req: IncomingMessage,
   res: ServerResponse,
   url: URL,
   _ctx: HostApiContext,
 ): Promise<boolean> {
+  if (url.pathname === '/api/sessions/transcript' && req.method === 'GET') {
+    try {
+      const agentId = url.searchParams.get('agentId')?.trim() || '';
+      const sessionId = url.searchParams.get('sessionId')?.trim() || '';
+      if (!agentId || !sessionId) {
+        sendJson(res, 400, { success: false, error: 'agentId and sessionId are required' });
+        return true;
+      }
+      if (!SAFE_SESSION_SEGMENT.test(agentId) || !SAFE_SESSION_SEGMENT.test(sessionId)) {
+        sendJson(res, 400, { success: false, error: 'Invalid transcript identifier' });
+        return true;
+      }
+
+      const transcriptPath = join(getOpenClawConfigDir(), 'agents', agentId, 'sessions', `${sessionId}.jsonl`);
+      const fsP = await import('node:fs/promises');
+      const raw = await fsP.readFile(transcriptPath, 'utf8');
+      const lines = raw.split(/\r?\n/).filter(Boolean);
+      const messages = lines.flatMap((line) => {
+        try {
+          const entry = JSON.parse(line) as { type?: string; message?: unknown };
+          return entry.type === 'message' && entry.message ? [entry.message] : [];
+        } catch {
+          return [];
+        }
+      });
+
+      sendJson(res, 200, { success: true, messages });
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+        sendJson(res, 404, { success: false, error: 'Transcript not found' });
+      } else {
+        sendJson(res, 500, { success: false, error: 'Failed to load transcript' });
+      }
+    }
+    return true;
+  }
+
   if (url.pathname === '/api/sessions/delete' && req.method === 'POST') {
     try {
       const body = await parseJsonBody<{ sessionKey: string }>(req);

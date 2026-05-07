@@ -26,7 +26,7 @@ export type ChannelType =
 /**
  * Channel connection status
  */
-export type ChannelStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
+export type ChannelStatus = 'connected' | 'disconnected' | 'connecting' | 'degraded' | 'error';
 
 /**
  * Channel connection type
@@ -151,7 +151,6 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
       'channels:meta.qqbot.instructions.1',
       'channels:meta.qqbot.instructions.2',
     ],
-    isPlugin: true,
   },
   dingtalk: {
     id: 'dingtalk',
@@ -175,33 +174,11 @@ export const CHANNEL_META: Record<ChannelType, ChannelMeta> = {
         placeholder: 'channels:meta.dingtalk.fields.clientSecret.placeholder',
         required: true,
       },
-      {
-        key: 'robotCode',
-        label: 'channels:meta.dingtalk.fields.robotCode.label',
-        type: 'text',
-        placeholder: 'channels:meta.dingtalk.fields.robotCode.placeholder',
-        required: false,
-      },
-      {
-        key: 'corpId',
-        label: 'channels:meta.dingtalk.fields.corpId.label',
-        type: 'text',
-        placeholder: 'channels:meta.dingtalk.fields.corpId.placeholder',
-        required: false,
-      },
-      {
-        key: 'agentId',
-        label: 'channels:meta.dingtalk.fields.agentId.label',
-        type: 'text',
-        placeholder: 'channels:meta.dingtalk.fields.agentId.placeholder',
-        required: false,
-      },
     ],
     instructions: [
       'channels:meta.dingtalk.instructions.0',
       'channels:meta.dingtalk.instructions.1',
       'channels:meta.dingtalk.instructions.2',
-      'channels:meta.dingtalk.instructions.3',
     ],
     isPlugin: true,
   },

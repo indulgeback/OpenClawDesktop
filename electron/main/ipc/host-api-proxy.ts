@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { proxyAwareFetch } from '../../utils/proxy-fetch';
-import { PORTS } from '../../utils/config';
+import { getPort } from '../../utils/config';
+import { getHostApiToken } from '../../api/server';
 
 type HostApiFetchRequest = {
   path: string;
@@ -10,6 +11,12 @@ type HostApiFetchRequest = {
 };
 
 export function registerHostApiProxyHandlers(): void {
+  const hostApiPort = getPort('OPENCLAWPRO_HOST_API');
+
+  // Expose the per-session auth token to the renderer so the browser-fallback
+  // path in host-api.ts can authenticate against the Host API server.
+  ipcMain.handle('hostapi:token', () => getHostApiToken());
+
   ipcMain.handle('hostapi:fetch', async (_, request: HostApiFetchRequest) => {
     try {
       const path = typeof request?.path === 'string' ? request.path : '';
@@ -19,6 +26,8 @@ export function registerHostApiProxyHandlers(): void {
 
       const method = (request.method || 'GET').toUpperCase();
       const headers: Record<string, string> = { ...(request.headers || {}) };
+      // Inject the per-session auth token so the Host API server accepts this request.
+      headers['Authorization'] = `Bearer ${getHostApiToken()}`;
       let body: string | undefined;
 
       if (request.body !== undefined && request.body !== null) {
@@ -26,13 +35,15 @@ export function registerHostApiProxyHandlers(): void {
           body = request.body;
         } else {
           body = JSON.stringify(request.body);
-          if (!headers['Content-Type'] && !headers['content-type']) {
-            headers['Content-Type'] = 'application/json';
-          }
+        }
+        // Ensure Content-Type is set for requests with a body so the
+        // server's anti-CSRF Content-Type gate does not reject them.
+        if (!headers['Content-Type'] && !headers['content-type']) {
+          headers['Content-Type'] = 'application/json';
         }
       }
 
-      const response = await proxyAwareFetch(`http://127.0.0.1:${PORTS.OPENCLAWPRO_HOST_API}${path}`, {
+      const response = await proxyAwareFetch(`http://127.0.0.1:${hostApiPort}${path}`, {
         method,
         headers,
         body,

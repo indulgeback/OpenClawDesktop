@@ -29,7 +29,9 @@ export async function handleGatewayRoutes(
   }
 
   if (url.pathname === '/api/gateway/health' && req.method === 'GET') {
-    const health = await ctx.gatewayManager.checkHealth();
+    const health = await ctx.gatewayManager.checkHealth({
+      probe: url.searchParams.get('probe') === '1' || url.searchParams.get('probe') === 'true',
+    });
     sendJson(res, 200, health);
     return true;
   }
@@ -69,7 +71,8 @@ export async function handleGatewayRoutes(
       const status = ctx.gatewayManager.getStatus();
       const token = await getSetting('gatewayToken');
       const port = status.port || PORTS.OPENCLAW_GATEWAY;
-      const urlValue = buildOpenClawControlUiUrl(port, token);
+      const view = url.searchParams.get('view') === 'dreams' ? 'dreams' : undefined;
+      const urlValue = buildOpenClawControlUiUrl(port, token, { view });
       sendJson(res, 200, { success: true, url: urlValue, token, port });
     } catch (error) {
       sendJson(res, 500, { success: false, error: String(error) });

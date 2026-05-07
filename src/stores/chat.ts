@@ -1,13 +1,22 @@
 /**
  * Chat State Store
- * Manages chat messages, sessions, streaming, and thinking state.
+ * Manages chat messages, sessions, and streaming state.
  * Communicates with OpenClaw Gateway via renderer WebSocket RPC.
  */
 import { create } from 'zustand';
 import { hostApiFetch } from '@/lib/host-api';
 import { useGatewayStore } from './gateway';
 import { useAgentsStore } from './agents';
+import { buildBaselineRunKey, captureBaseline, clearBaselines } from './baseline-cache';
 import { buildCronSessionHistoryPath, isCronSessionKey } from './chat/cron-session-utils';
+import {
+  CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS,
+  classifyHistoryStartupRetryError,
+  getHistoryLoadingSafetyTimeout,
+  getStartupHistoryTimeoutOverride,
+  shouldRetryStartupHistoryLoad,
+  sleep,
+} from './chat/history-startup-retry';
 import {
   DEFAULT_CANONICAL_PREFIX,
   DEFAULT_SESSION_KEY,
@@ -52,6 +61,8 @@ let _loadSessionsInFlight: Promise<void> | null = null;
 let _lastLoadSessionsAt = 0;
 const _historyLoadInFlight = new Map<string, Promise<void>>();
 const _lastHistoryLoadAtBySession = new Map<string, number>();
+const _forceNextHistoryLoadBySession = new Set<string>();
+const _foregroundHistoryLoadSeen = new Set<string>();
 const SESSION_LOAD_MIN_INTERVAL_MS = 1_200;
 const HISTORY_LOAD_MIN_INTERVAL_MS = 800;
 const HISTORY_POLL_SILENCE_WINDOW_MS = 2_500;
@@ -72,6 +83,10 @@ function clearHistoryPoll(): void {
   }
 }
 
+function forceNextHistoryLoad(sessionKey: string): void {
+  _forceNextHistoryLoadBySession.add(sessionKey);
+}
+
 function pruneChatEventDedupe(now: number): void {
   for (const [key, ts] of _chatEventDedupe.entries()) {
     if (now - ts > CHAT_EVENT_DEDUPE_TTL_MS) {
@@ -84,6 +99,13 @@ function buildChatEventDedupeKey(eventState: string, event: Record<string, unkno
   const runId = event.runId != null ? String(event.runId) : '';
   const sessionKey = event.sessionKey != null ? String(event.sessionKey) : '';
   const seq = event.seq != null ? String(event.seq) : '';
+  // Some gateways emit multiple `delta` updates without a monotonically
+  // increasing `seq`. Deduping those by just `runId + sessionKey + state`
+  // collapses legitimate stream progression, so only seq-backed deltas are
+  // safe to dedupe generically.
+  if (eventState === 'delta' && !seq) {
+    return null;
+  }
   if (runId || sessionKey || seq || eventState) {
     return [runId, sessionKey, seq, eventState].join('|');
   }
@@ -100,15 +122,26 @@ function buildChatEventDedupeKey(eventState: string, event: Record<string, unkno
   return null;
 }
 
+function getFinalMessageIdDedupeKey(eventState: string, event: Record<string, unknown>): string | null {
+  if (eventState !== 'final') return null;
+  const msg = (event.message && typeof event.message === 'object')
+    ? event.message as Record<string, unknown>
+    : null;
+  if (msg?.id != null) return `final-msgid|${String(msg.id)}`;
+  return null;
+}
+
 function isDuplicateChatEvent(eventState: string, event: Record<string, unknown>): boolean {
   const key = buildChatEventDedupeKey(eventState, event);
-  if (!key) return false;
+  const msgKey = getFinalMessageIdDedupeKey(eventState, event);
+  if (!key && !msgKey) return false;
   const now = Date.now();
   pruneChatEventDedupe(now);
-  if (_chatEventDedupe.has(key)) {
+  if ((key && _chatEventDedupe.has(key)) || (msgKey && _chatEventDedupe.has(msgKey))) {
     return true;
   }
-  _chatEventDedupe.set(key, now);
+  if (key) _chatEventDedupe.set(key, now);
+  if (msgKey) _chatEventDedupe.set(msgKey, now);
   return false;
 }
 
@@ -145,16 +178,189 @@ function saveImageCache(cache: Map<string, AttachedFileMeta>): void {
 
 const _imageCache = loadImageCache();
 
+function normalizeBlockText(text: string | undefined): string {
+  return typeof text === 'string' ? text.replace(/\r\n/g, '\n').trim() : '';
+}
+
+function compactProgressiveTextParts(parts: string[]): string[] {
+  const compacted: string[] = [];
+
+  for (const part of parts) {
+    const current = normalizeBlockText(part);
+    if (!current) continue;
+
+    const previous = compacted.at(-1);
+    if (!previous) {
+      compacted.push(part);
+      continue;
+    }
+
+    const normalizedPrevious = normalizeBlockText(previous);
+    if (!normalizedPrevious) {
+      compacted[compacted.length - 1] = part;
+      continue;
+    }
+
+    if (current === normalizedPrevious || normalizedPrevious.startsWith(current)) {
+      continue;
+    }
+
+    if (current.startsWith(normalizedPrevious)) {
+      compacted[compacted.length - 1] = part;
+      continue;
+    }
+
+    compacted.push(part);
+  }
+
+  return compacted;
+}
+
+function normalizeLiveContentBlocks(content: ContentBlock[]): ContentBlock[] {
+  return content.map((block) => ({ ...block }));
+}
+
+function normalizeStreamingMessage(message: unknown): unknown {
+  if (!message || typeof message !== 'object') return message;
+
+  const rawMessage = message as RawMessage;
+  const rawContent = rawMessage.content;
+  if (!Array.isArray(rawContent)) return rawMessage;
+
+  const normalizedContent = normalizeLiveContentBlocks(rawContent as ContentBlock[]);
+  const didChange = normalizedContent.some((block, index) => block !== rawContent[index])
+    || normalizedContent.length !== rawContent.length;
+
+  return didChange
+    ? { ...rawMessage, content: normalizedContent }
+    : rawMessage;
+}
+
+/**
+ * Strip Gateway-injected metadata that does NOT exist on the renderer's
+ * optimistic user message but is echoed back when the Gateway persists it:
+ *   - leading timestamp `[Wed 2026-04-22 10:30 GMT+8] `
+ *   - `[message_id: uuid]` tags sprinkled throughout the text
+ *   - `[media attached: path (mime) | path]` references appended when the
+ *     renderer sends attachments via `chat:sendWithMedia`
+ *   - Gateway-injected "Conversation info (untrusted metadata): ..." blocks
+ *
+ * Keeping this aligned with `cleanUserText` in `pages/Chat/message-utils.ts`
+ * is important: the user bubble renders the cleaned text, so the comparison
+ * used to dedupe optimistic vs server echoes must operate on the same
+ * cleaned form — otherwise the same visible message renders twice.
+ */
+function stripGatewayUserMetadata(text: string): string {
+  return text
+    .replace(/^\s*\[(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+[^\]]+\]\s*/i, '')
+    .replace(/\s*\[media attached:[^\]]*\]/g, '')
+    .replace(/\s*\[message_id:\s*[^\]]+\]/g, '')
+    .replace(/^Conversation info\s*\([^)]*\):\s*```[a-z]*\n[\s\S]*?```\s*/i, '')
+    .replace(/^Conversation info\s*\([^)]*\):\s*\{[\s\S]*?\}\s*/i, '');
+}
+
+function normalizeComparableUserText(content: unknown): string {
+  return stripGatewayUserMetadata(getMessageText(content))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getComparableAttachmentSignature(message: Pick<RawMessage, '_attachedFiles'>): string {
+  const files = (message._attachedFiles || [])
+    .map((file) => file.filePath || `${file.fileName}|${file.mimeType}|${file.fileSize}`)
+    .filter(Boolean)
+    .sort();
+  return files.join('::');
+}
+
+function matchesOptimisticUserMessage(
+  candidate: RawMessage,
+  optimistic: RawMessage,
+  optimisticTimestampMs: number,
+): boolean {
+  if (candidate.role !== 'user') return false;
+
+  const optimisticText = normalizeComparableUserText(optimistic.content);
+  const candidateText = normalizeComparableUserText(candidate.content);
+  const sameText = optimisticText.length > 0 && optimisticText === candidateText;
+
+  const optimisticAttachments = getComparableAttachmentSignature(optimistic);
+  const candidateAttachments = getComparableAttachmentSignature(candidate);
+  const sameAttachments = optimisticAttachments.length > 0 && optimisticAttachments === candidateAttachments;
+
+  const hasOptimisticTimestamp = Number.isFinite(optimisticTimestampMs) && optimisticTimestampMs > 0;
+  const hasCandidateTimestamp = candidate.timestamp != null;
+  const timestampMatches = hasOptimisticTimestamp && hasCandidateTimestamp
+    ? Math.abs(toMs(candidate.timestamp as number) - optimisticTimestampMs) < 5000
+    : false;
+
+  if (sameText && sameAttachments) return true;
+  if (sameText && (!optimisticAttachments || !candidateAttachments) && (timestampMatches || !hasCandidateTimestamp)) return true;
+  if (sameAttachments && (!optimisticText || !candidateText) && (timestampMatches || !hasCandidateTimestamp)) return true;
+  return false;
+}
+
+function snapshotStreamingAssistantMessage(
+  currentStream: RawMessage | null,
+  existingMessages: RawMessage[],
+  runId: string,
+): RawMessage[] {
+  if (!currentStream) return [];
+
+  const normalizedStream = normalizeStreamingMessage(currentStream) as RawMessage;
+  const streamRole = normalizedStream.role;
+  if (streamRole !== 'assistant' && streamRole !== undefined) return [];
+
+  const snapId = normalizedStream.id || `${runId || 'run'}-turn-${existingMessages.length}`;
+  if (existingMessages.some((message) => message.id === snapId)) return [];
+
+  return [{
+    ...normalizedStream,
+    role: 'assistant',
+    id: snapId,
+  }];
+}
+
+function getLatestOptimisticUserMessage(messages: RawMessage[], userTimestampMs: number): RawMessage | undefined {
+  return [...messages].reverse().find(
+    (message) => message.role === 'user' && (!message.timestamp || Math.abs(toMs(message.timestamp) - userTimestampMs) < 5000),
+  );
+}
+
 /** Extract plain text from message content (string or content blocks) */
 function getMessageText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return (content as Array<{ type?: string; text?: string }>)
+    const parts = (content as Array<{ type?: string; text?: string }>)
       .filter(b => b.type === 'text' && b.text)
-      .map(b => b.text!)
-      .join('\n');
+      .map(b => b.text!);
+    return compactProgressiveTextParts(parts).join('\n');
   }
   return '';
+}
+
+function getMessageStopReason(message: RawMessage | unknown): string | null {
+  if (!message || typeof message !== 'object') return null;
+  const msg = message as Record<string, unknown>;
+  const rawStopReason = msg.stopReason ?? msg.stop_reason;
+  if (typeof rawStopReason !== 'string') return null;
+  const normalized = rawStopReason.trim().toLowerCase();
+  return normalized || null;
+}
+
+function getMessageErrorMessage(message: RawMessage | unknown): string | null {
+  if (!message || typeof message !== 'object') return null;
+  const msg = message as Record<string, unknown>;
+  const rawError = msg.errorMessage ?? msg.error_message;
+  if (typeof rawError !== 'string') return null;
+  const normalized = rawError.trim();
+  return normalized || null;
+}
+
+function isTerminalAssistantErrorMessage(message: RawMessage | unknown): boolean {
+  if (!message || typeof message !== 'object') return false;
+  const msg = message as Record<string, unknown>;
+  return msg.role === 'assistant' && getMessageStopReason(message) === 'error';
 }
 
 /** Extract media file refs from [media attached: <path> (<mime>) | ...] patterns */
@@ -218,6 +424,12 @@ function mimeFromExtension(filePath: string): string {
   return map[ext] || 'application/octet-stream';
 }
 
+const DIRECTORY_MIME_TYPE = 'application/x-directory';
+
+function trimPathTerminators(filePath: string): string {
+  return filePath.replace(/[，。；;,.!?]+$/u, '');
+}
+
 /**
  * Extract raw file paths from message text.
  * Detects absolute paths (Unix: / or ~/, Windows: C:\ etc.) ending with common file extensions.
@@ -229,16 +441,26 @@ function extractRawFilePaths(text: string): Array<{ filePath: string; mimeType: 
   const exts = 'png|jpe?g|gif|webp|bmp|avif|svg|pdf|docx?|xlsx?|pptx?|txt|csv|md|rtf|epub|zip|tar|gz|rar|7z|mp3|wav|ogg|aac|flac|m4a|mp4|mov|avi|mkv|webm|m4v';
   // Unix absolute paths (/... or ~/...) — lookbehind rejects mid-token slashes
   // (e.g. "path/to/file.mp4", "https://example.com/file.mp4")
-  const unixRegex = new RegExp(`(?<![\\w./:])((?:\\/|~\\/)[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`, 'gi');
+  const unixRegex = new RegExp(`(?<![\\w./:])((?:\\/|~\\/)[^\\s\\n"'()\`\\[\\],<>]*?\\.(?:${exts}))`, 'gi');
   // Windows absolute paths (C:\... D:\...) — lookbehind rejects drive letter glued to a word
-  const winRegex = new RegExp(`(?<![\\w])([A-Za-z]:\\\\[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`, 'gi');
-  for (const regex of [unixRegex, winRegex]) {
+  const winRegex = new RegExp(`(?<![\\w])([A-Za-z]:\\\\[^\\s\\n"'()\`\\[\\],<>]*?\\.(?:${exts}))`, 'gi');
+  const skillPathBoundary = '(?=$|\\s|[\\x5b\\x5d"\'`(),<>，。；;,.!?])';
+  const skillPathPart = '[^\\\\/\\s\\n"\'`()\\x5b\\x5d,<>]+';
+  const skillPathTail = '[^\\s\\n"\'`()\\x5b\\x5d,<>]*?';
+  const skillDirRegex = new RegExp(
+    `(?<![\\w./:])((?:~[\\\\/]\\.openclaw[\\\\/]skills[\\\\/]${skillPathPart})|(?:(?:\\/|[A-Za-z]:\\\\)${skillPathTail}[\\\\/]\\.openclaw[\\\\/]skills[\\\\/]${skillPathPart}))${skillPathBoundary}`,
+    'gi',
+  );
+  for (const regex of [unixRegex, winRegex, skillDirRegex]) {
     let match;
     while ((match = regex.exec(text)) !== null) {
-      const p = match[1];
+      const p = trimPathTerminators(match[1]);
       if (p && !seen.has(p)) {
         seen.add(p);
-        refs.push({ filePath: p, mimeType: mimeFromExtension(p) });
+        refs.push({
+          filePath: p,
+          mimeType: regex === skillDirRegex ? DIRECTORY_MIME_TYPE : mimeFromExtension(p),
+        });
       }
     }
   }
@@ -415,6 +637,9 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
           }
         }
       }
+      // Tag all files from tool results so ChatMessage can suppress them
+      // in segments that already have an ExecutionGraphCard.
+      for (const f of imageFiles) f.source = 'tool-result';
       pending.push(...imageFiles);
 
       // 2. [media attached: ...] patterns in tool result text output
@@ -423,12 +648,12 @@ function enrichWithToolResultFiles(messages: RawMessage[]): RawMessage[] {
         const mediaRefs = extractMediaRefs(text);
         const mediaRefPaths = new Set(mediaRefs.map(r => r.filePath));
         for (const ref of mediaRefs) {
-          pending.push(makeAttachedFile(ref));
+          pending.push({ ...makeAttachedFile(ref), source: 'tool-result' });
         }
         // 3. Raw file paths in tool result text (documents, audio, video, etc.)
         for (const ref of extractRawFilePaths(text)) {
           if (!mediaRefPaths.has(ref.filePath)) {
-            pending.push(makeAttachedFile(ref));
+            pending.push({ ...makeAttachedFile(ref), source: 'tool-result' });
           }
         }
       }
@@ -505,9 +730,9 @@ function enrichWithCachedImages(messages: RawMessage[]): RawMessage[] {
 
     const files: AttachedFileMeta[] = allRefs.map(ref => {
       const cached = _imageCache.get(ref.filePath);
-      if (cached) return { ...cached, filePath: ref.filePath };
+      if (cached) return { ...cached, filePath: ref.filePath, source: 'message-ref' as const };
       const fileName = ref.filePath.split(/[\\/]/).pop() || 'file';
-      return { fileName, mimeType: ref.mimeType, fileSize: 0, preview: null, filePath: ref.filePath };
+      return { fileName, mimeType: ref.mimeType, fileSize: 0, preview: null, filePath: ref.filePath, source: 'message-ref' as const };
     });
     return { ...msg, _attachedFiles: files };
   });
@@ -684,9 +909,10 @@ function buildSessionSwitchPatch(
   >,
   nextSessionKey: string,
 ): Partial<ChatState> {
-  // 仅将没有任何历史记录且无活动时间的会话视为空会话。
-  // 单纯依赖 messages.length 是不可靠的，因为 switchSession 会在真正调用 loadHistory 前抢先清空当前 messages，
-  // 造成竞争条件，使得带有真实历史的会话被判定为空并从侧边栏移除。
+  // Only treat sessions with no history records and no activity timestamp as empty.
+  // Relying solely on messages.length is unreliable because switchSession clears
+  // the current messages before loadHistory runs, creating a race condition that
+  // could cause sessions with real history to be incorrectly removed from the sidebar.
   const leavingEmpty = !state.currentSessionKey.endsWith(':main')
     && state.messages.length === 0
     && !state.sessionLastActivity[state.currentSessionKey]
@@ -775,6 +1001,111 @@ function isToolResultRole(role: unknown): boolean {
   if (!role) return false;
   const normalized = String(role).toLowerCase();
   return normalized === 'toolresult' || normalized === 'tool_result';
+}
+
+/** True for internal plumbing messages that should never be shown in the UI. */
+function isInternalMessage(msg: { role?: unknown; content?: unknown }): boolean {
+  if (msg.role === 'system') return true;
+  const text = getMessageText(msg.content);
+  if (msg.role === 'assistant') {
+    if (/^(HEARTBEAT_OK|NO_REPLY)\s*$/.test(text)) return true;
+  }
+  // Runtime system injections: these arrive as user or assistant-role messages
+  // but are internal plumbing (exec results, async-command notices, time pings, etc.)
+  if ((msg.role === 'user' || msg.role === 'assistant') && isRuntimeSystemInjection(text)) return true;
+  return false;
+}
+
+/**
+ * Detect runtime-injected system messages that should be hidden from the chat UI.
+ * These are injected by the OpenClaw runtime as user-role messages and include:
+ *   - "System (untrusted): ..." — exec results, tool output, etc.
+ *   - "An async command you ran earlier has completed" — async completion notices
+ *   - "Current time: ..." followed by nothing else — periodic heartbeat time pings
+ *   - "Handle the result internally. Do not relay it to the user" — internal directives
+ */
+function isRuntimeSystemInjection(text: string): boolean {
+  if (!text) return false;
+  const normalized = text.trim();
+  if (/^\s*System\s*\(untrusted\)\s*:/i.test(normalized)) return true;
+  if (
+    /An async command you ran earlier has completed/i.test(normalized)
+    && /Do not relay it to the user unless explicitly requested/i.test(normalized)
+  ) {
+    return true;
+  }
+  if (
+    /^\s*Current time\s*:/i.test(normalized)
+    && /^\s*Current time\s*:[^\n]*\/\s*\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+UTC\s*$/i.test(normalized)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+// ── Write tool_use baseline capture ─────────────────────────────
+//
+// Tool name sets mirror generated-files.ts so we detect the same tools.
+const BASELINE_WRITE_TOOLS = new Set([
+  'Write', 'write_file', 'create_file', 'WriteFile', 'createFile', 'write',
+]);
+const BASELINE_EDIT_TOOLS = new Set([
+  'Edit', 'edit', 'edit_file', 'EditFile',
+  'StrReplace', 'str_replace', 'str_replace_editor',
+  'MultiEdit', 'multi_edit', 'multiEdit',
+]);
+const BASELINE_FILE_PATH_KEYS = ['file_path', 'filepath', 'path', 'fileName', 'file_name', 'target_path'];
+
+function pickFilePathFromInput(input: unknown): string | null {
+  if (!input || typeof input !== 'object') return null;
+  const rec = input as Record<string, unknown>;
+  for (const key of BASELINE_FILE_PATH_KEYS) {
+    const value = rec[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+/**
+ * Scan a streaming message for Write/Edit tool_use blocks and trigger
+ * async baseline reads from disk for each target file.  Called on every
+ * `delta` event; `captureBaseline` is idempotent — duplicate calls for
+ * the same path are no-ops.
+ */
+function isBaselineRealUserMessage(message: RawMessage | undefined): boolean {
+  if (!message || message.role !== 'user') return false;
+  const content = message.content;
+  if (!Array.isArray(content)) return true;
+  const blocks = content as Array<{ type?: string }>;
+  return blocks.length === 0 || !blocks.every((block) => block.type === 'tool_result' || block.type === 'toolResult');
+}
+
+function countBaselineRealUserMessages(messages: RawMessage[]): number {
+  let count = 0;
+  for (const message of messages) {
+    if (isBaselineRealUserMessage(message)) count += 1;
+  }
+  return count;
+}
+
+function getBaselineRunKeyForMessages(sessionKey: string, messages: RawMessage[]): string | null {
+  const userTurnOrdinal = countBaselineRealUserMessages(messages);
+  return buildBaselineRunKey(sessionKey, userTurnOrdinal);
+}
+
+function captureBaselinesFromMessage(message: unknown, runKey: string | null): void {
+  if (!runKey || !message || typeof message !== 'object') return;
+  const content = (message as Record<string, unknown>).content;
+  if (!Array.isArray(content)) return;
+  for (const block of content as ContentBlock[]) {
+    if (block.type !== 'tool_use' && block.type !== 'toolCall') continue;
+    const name = typeof block.name === 'string' ? block.name : '';
+    if (!name) continue;
+    if (!BASELINE_WRITE_TOOLS.has(name) && !BASELINE_EDIT_TOOLS.has(name)) continue;
+    const input = block.input ?? block.arguments;
+    const filePath = pickFilePathFromInput(input);
+    if (filePath) captureBaseline(runKey, filePath);
+  }
 }
 
 function extractTextFromContent(content: unknown): string {
@@ -945,6 +1276,15 @@ function upsertToolStatuses(current: ToolStatus[], updates: ToolStatus[]): ToolS
   return next;
 }
 
+/**
+ * Only treat an explicit chat.send ack timeout as recoverable.
+ * Gateway stopped / Gateway not connected are hard failures that
+ * should still terminate the send immediately.
+ */
+function isRecoverableChatSendTimeout(error: string): boolean {
+  return error.includes('RPC timeout: chat.send');
+}
+
 function collectToolUpdates(message: unknown, eventState: string): ToolStatus[] {
   const updates: ToolStatus[] = [];
   const toolResultUpdate = extractToolResultUpdate(message, eventState);
@@ -979,6 +1319,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   loading: false,
   error: null,
+  runError: null,
 
   sending: false,
   activeRunId: null,
@@ -995,7 +1336,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessionLabels: {},
   sessionLastActivity: {},
 
-  showThinking: true,
   thinkingLevel: null,
 
   // ── Load sessions via sessions.list ──
@@ -1089,38 +1429,50 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
 
           // Background: fetch first user message for every non-main session to populate labels upfront.
-          // Uses a small limit so it's cheap; runs in parallel and doesn't block anything.
+          // Retries on "gateway startup" errors since the gateway may still be initializing.
           const sessionsToLabel = sessionsWithCurrent.filter((s) => !s.key.endsWith(':main'));
           if (sessionsToLabel.length > 0) {
-            void Promise.all(
-              sessionsToLabel.map(async (session) => {
-                try {
-                  const r = await useGatewayStore.getState().rpc<Record<string, unknown>>(
-                    'chat.history',
-                    { sessionKey: session.key, limit: 1000 },
-                  );
-                  const msgs = Array.isArray(r.messages) ? r.messages as RawMessage[] : [];
-                  const firstUser = msgs.find((m) => m.role === 'user');
-                  const lastMsg = msgs[msgs.length - 1];
-                  set((s) => {
-                    const next: Partial<typeof s> = {};
-                    if (firstUser) {
-                      const labelText = getMessageText(firstUser.content).trim();
-                      if (labelText) {
-                        const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-                        next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+            const LABEL_RETRY_DELAYS = [2_000, 5_000, 10_000];
+            void (async () => {
+              let pending = sessionsToLabel;
+              for (let attempt = 0; attempt <= LABEL_RETRY_DELAYS.length; attempt += 1) {
+                const failed: typeof pending = [];
+                await Promise.all(
+                  pending.map(async (session) => {
+                    try {
+                      const r = await useGatewayStore.getState().rpc<Record<string, unknown>>(
+                        'chat.history',
+                        { sessionKey: session.key, limit: 1000 },
+                      );
+                      const msgs = Array.isArray(r.messages) ? r.messages as RawMessage[] : [];
+                      const firstUser = msgs.find((m) => m.role === 'user');
+                      const lastMsg = msgs[msgs.length - 1];
+                      set((s) => {
+                        const next: Partial<typeof s> = {};
+                        if (firstUser) {
+                          const labelText = getMessageText(firstUser.content).trim();
+                          if (labelText) {
+                            const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
+                            next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                          }
+                        }
+                        if (lastMsg?.timestamp) {
+                          next.sessionLastActivity = { ...s.sessionLastActivity, [session.key]: toMs(lastMsg.timestamp) };
+                        }
+                        return next;
+                      });
+                    } catch (err) {
+                      if (classifyHistoryStartupRetryError(err) === 'gateway_startup') {
+                        failed.push(session);
                       }
                     }
-                    if (lastMsg?.timestamp) {
-                      next.sessionLastActivity = { ...s.sessionLastActivity, [session.key]: toMs(lastMsg.timestamp) };
-                    }
-                    return next;
-                  });
-                } catch {
-                  // ignore per-session errors
-                }
-              }),
-            );
+                  }),
+                );
+                if (failed.length === 0 || attempt >= LABEL_RETRY_DELAYS.length) break;
+                await sleep(LABEL_RETRY_DELAYS[attempt]!);
+                pending = failed;
+              }
+            })();
           }
         }
       } catch (err) {
@@ -1141,6 +1493,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   switchSession: (key: string) => {
     if (key === get().currentSessionKey) return;
+    // Stop any background polling for the old session before switching.
+    // This prevents the poll timer from firing after the switch and loading
+    // the wrong session's history into the new session's view.
+    clearHistoryPoll();
+    clearBaselines();
     set((s) => buildSessionSwitchPatch(s, key));
     get().loadHistory();
   },
@@ -1189,6 +1546,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         streamingTools: [],
         activeRunId: null,
         error: null,
+        runError: null,
         pendingFinal: false,
         lastUserMessageAt: null,
         pendingToolImages: [],
@@ -1215,7 +1573,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // sessions.reset archives (renames) the session JSONL file, making old
     // conversation history inaccessible when the user switches back to it.
     const { currentSessionKey, messages, sessions, sessionLastActivity, sessionLabels } = get();
-    // 仅将没有任何历史记录且无活动时间的会话视为空会话
+    // Only treat sessions with no history records and no activity timestamp as empty
     const leavingEmpty = !currentSessionKey.endsWith(':main')
       && messages.length === 0
       && !sessionLastActivity[currentSessionKey]
@@ -1244,6 +1602,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingTools: [],
       activeRunId: null,
       error: null,
+      runError: null,
       pendingFinal: false,
       lastUserMessageAt: null,
       pendingToolImages: [],
@@ -1258,8 +1617,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // This mirrors the "leavingEmpty" logic in switchSession so that creating
     // a new session and immediately navigating away doesn't leave a ghost entry
     // in the sidebar.
-    // 同样需要综合检查 sessionLastActivity 和 sessionLabels，
-    // 防止因为 switchSession 抢先清空 messages 而误判有历史的会话为空。
+    // Also check sessionLastActivity and sessionLabels comprehensively to prevent
+    // falsely treating sessions with history as empty due to switchSession clearing messages early.
     const isEmptyNonMain = !currentSessionKey.endsWith(':main')
       && messages.length === 0
       && !sessionLastActivity[currentSessionKey]
@@ -1280,32 +1639,82 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   loadHistory: async (quiet = false) => {
     const { currentSessionKey } = get();
+    const isInitialForegroundLoad = !quiet && !_foregroundHistoryLoadSeen.has(currentSessionKey);
+    const historyTimeoutOverride = getStartupHistoryTimeoutOverride(isInitialForegroundLoad);
+    const forceLoad = _forceNextHistoryLoadBySession.delete(currentSessionKey);
     const existingLoad = _historyLoadInFlight.get(currentSessionKey);
     if (existingLoad) {
       await existingLoad;
-      return;
+      if (!forceLoad) {
+        return;
+      }
+      if (get().currentSessionKey !== currentSessionKey) {
+        return;
+      }
     }
 
     const lastLoadAt = _lastHistoryLoadAtBySession.get(currentSessionKey) || 0;
-    if (quiet && Date.now() - lastLoadAt < HISTORY_LOAD_MIN_INTERVAL_MS) {
+    if (!forceLoad && quiet && Date.now() - lastLoadAt < HISTORY_LOAD_MIN_INTERVAL_MS) {
       return;
     }
 
-    if (!quiet) set({ loading: true, error: null });
+      if (!quiet) set({ loading: true, error: null, runError: null });
 
-    // 安全保护：如果历史记录加载花费太多时间，则强制将 loading 设置为 false
-    // 防止 UI 永远卡在转圈状态。
+    // Safety guard: if history loading takes too long, force loading to false
+    // to prevent the UI from being stuck in a spinner forever.
     let loadingTimedOut = false;
     const loadingSafetyTimer = quiet ? null : setTimeout(() => {
       loadingTimedOut = true;
       set({ loading: false });
-    }, 15_000);
+    }, getHistoryLoadingSafetyTimeout(isInitialForegroundLoad));
 
     const loadPromise = (async () => {
+      const isCurrentSession = () => get().currentSessionKey === currentSessionKey;
+      const getPreviewMergeKey = (message: RawMessage): string => (
+        `${message.id ?? ''}|${message.role}|${message.timestamp ?? ''}|${getMessageText(message.content)}`
+      );
+      const mergeHydratedMessages = (
+        currentMessages: RawMessage[],
+        hydratedMessages: RawMessage[],
+      ): RawMessage[] => {
+        const hydratedFilesByKey = new Map(
+          hydratedMessages
+            .filter((message) => message._attachedFiles?.length)
+            .map((message) => [
+              getPreviewMergeKey(message),
+              message._attachedFiles!.map((file) => ({ ...file })),
+            ]),
+        );
+
+        return currentMessages.map((message) => {
+          const attachedFiles = hydratedFilesByKey.get(getPreviewMergeKey(message));
+          return attachedFiles
+            ? { ...message, _attachedFiles: attachedFiles }
+            : message;
+        });
+      };
+
+      const applyLoadFailure = (errorMessage: string | null) => {
+        if (!isCurrentSession()) return;
+        set((state) => {
+          const hasMessages = state.messages.length > 0;
+          return {
+            loading: false,
+            error: !quiet && errorMessage ? errorMessage : state.error,
+            ...(hasMessages ? {} : { messages: [] as RawMessage[] }),
+          };
+        });
+      };
+
       const applyLoadedMessages = (rawMessages: RawMessage[], thinkingLevel: string | null) => {
+      // Guard: if the user switched sessions while this async load was in
+      // flight, discard the result to prevent overwriting the new session's
+      // messages with stale data from the old session.
+      if (!isCurrentSession()) return false;
+
       // Before filtering: attach images/files from tool_result messages to the next assistant message
       const messagesWithToolImages = enrichWithToolResultFiles(rawMessages);
-      const filteredMessages = messagesWithToolImages.filter((msg) => !isToolResultRole(msg.role));
+      const filteredMessages = messagesWithToolImages.filter((msg) => !isToolResultRole(msg.role) && !isInternalMessage(msg));
       // Restore file attachments for user/assistant messages (from cache + text patterns)
       const enrichedMessages = enrichWithCachedImages(filteredMessages);
 
@@ -1316,21 +1725,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const userMsgAt = get().lastUserMessageAt;
       if (get().sending && userMsgAt) {
         const userMsMs = toMs(userMsgAt);
-        const hasRecentUser = enrichedMessages.some(
-          (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
-        );
-        if (!hasRecentUser) {
-          const currentMsgs = get().messages;
-          const optimistic = [...currentMsgs].reverse().find(
-            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
-          );
-          if (optimistic) {
-            finalMessages = [...enrichedMessages, optimistic];
-          }
+        const optimistic = getLatestOptimisticUserMessage(get().messages, userMsMs);
+        const hasMatchingUser = optimistic
+          ? enrichedMessages.some((message) => matchesOptimisticUserMessage(message, optimistic, userMsMs))
+          : false;
+        if (optimistic && !hasMatchingUser) {
+          finalMessages = [...enrichedMessages, optimistic];
         }
       }
 
-      set({ messages: finalMessages, thinkingLevel, loading: false });
+      const { pendingFinal, lastUserMessageAt, sending: isSendingNow } = get();
+      const userMsTs = lastUserMessageAt ? toMs(lastUserMessageAt) : 0;
+      const isAfterUserMsg = (msg: RawMessage): boolean => {
+        if (!userMsTs || !msg.timestamp) return true;
+        return toMs(msg.timestamp) >= userMsTs;
+      };
+      const isRealUserBoundary = (msg: RawMessage): boolean => {
+        if (msg.role !== 'user') return false;
+        if (!Array.isArray(msg.content)) return true;
+        const blocks = msg.content as Array<{ type?: string }>;
+        return blocks.length === 0 || !blocks.every((block) => block.type === 'tool_result' || block.type === 'toolResult');
+      };
+      const postBoundaryMessages = userMsTs
+        ? filteredMessages.filter((msg) => isAfterUserMsg(msg))
+        : (() => {
+            for (let i = filteredMessages.length - 1; i >= 0; i -= 1) {
+              if (isRealUserBoundary(filteredMessages[i])) {
+                return filteredMessages.slice(i + 1);
+              }
+            }
+            return filteredMessages;
+          })();
+      const lastAssistantAfterBoundary = [...postBoundaryMessages].reverse().find((msg) => msg.role === 'assistant');
+      const latestTerminalAssistantErrorMessage = lastAssistantAfterBoundary
+        && getMessageStopReason(lastAssistantAfterBoundary) === 'error'
+        ? getMessageErrorMessage(lastAssistantAfterBoundary)
+        : null;
+
+      set({
+        messages: finalMessages,
+        thinkingLevel,
+        loading: false,
+        runError: latestTerminalAssistantErrorMessage,
+      });
 
       // Extract first user message text as a session label for display in the toolbar.
       // Skip main sessions (key ends with ":main") — they rely on the Gateway-provided
@@ -1360,29 +1797,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Async: load missing image previews from disk (updates in background)
       loadMissingPreviews(finalMessages).then((updated) => {
+        if (!isCurrentSession()) return;
         if (updated) {
-          // Create new object references so React.memo detects changes.
-          // loadMissingPreviews mutates AttachedFileMeta in place, so we
-          // must produce fresh message + file references for each affected msg.
-          set({
-            messages: finalMessages.map(msg =>
-              msg._attachedFiles
-                ? { ...msg, _attachedFiles: msg._attachedFiles.map(f => ({ ...f })) }
-                : msg
-            ),
-          });
+          set((state) => ({
+            messages: mergeHydratedMessages(state.messages, finalMessages),
+          }));
         }
       });
-      const { pendingFinal, lastUserMessageAt, sending: isSendingNow } = get();
 
-      // If we're sending but haven't received streaming events, check
-      // whether the loaded history reveals intermediate tool-call activity.
-      // This surfaces progress via the pendingFinal → ActivityIndicator path.
-      const userMsTs = lastUserMessageAt ? toMs(lastUserMessageAt) : 0;
-      const isAfterUserMsg = (msg: RawMessage): boolean => {
-        if (!userMsTs || !msg.timestamp) return true;
-        return toMs(msg.timestamp) >= userMsTs;
-      };
+      if (latestTerminalAssistantErrorMessage) {
+        clearHistoryPoll();
+        set({
+          sending: false,
+          activeRunId: null,
+          pendingFinal: false,
+          lastUserMessageAt: null,
+        });
+        return true;
+      }
 
       if (isSendingNow && !pendingFinal) {
         const hasRecentAssistantActivity = [...filteredMessages].reverse().some((msg) => {
@@ -1406,13 +1838,53 @@ export const useChatStore = create<ChatState>((set, get) => ({
           set({ sending: false, activeRunId: null, pendingFinal: false });
         }
       }
+      return true;
       };
 
       try {
-        const data = await useGatewayStore.getState().rpc<Record<string, unknown>>(
-          'chat.history',
-          { sessionKey: currentSessionKey, limit: 200 },
-        );
+        let data: Record<string, unknown> | null = null;
+        let lastError: unknown = null;
+
+        for (let attempt = 0; attempt <= CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS.length; attempt += 1) {
+          if (!isCurrentSession()) {
+            break;
+          }
+
+          try {
+            data = await useGatewayStore.getState().rpc<Record<string, unknown>>(
+              'chat.history',
+              { sessionKey: currentSessionKey, limit: 200 },
+              historyTimeoutOverride,
+            );
+            lastError = null;
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+
+          if (!isCurrentSession()) {
+            break;
+          }
+
+          const errorKind = classifyHistoryStartupRetryError(lastError);
+          const shouldRetry = isInitialForegroundLoad
+            && attempt < CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS.length
+            && shouldRetryStartupHistoryLoad(useGatewayStore.getState().status, errorKind);
+
+          if (!shouldRetry) {
+            break;
+          }
+
+          console.warn('[chat.history] startup retry scheduled', {
+            sessionKey: currentSessionKey,
+            attempt: attempt + 1,
+            gatewayState: useGatewayStore.getState().status.state,
+            errorKind,
+            error: String(lastError),
+          });
+          await sleep(CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS[attempt]!);
+        }
+
         if (data) {
           let rawMessages = Array.isArray(data.messages) ? data.messages as RawMessage[] : [];
           const thinkingLevel = data.thinkingLevel ? String(data.thinkingLevel) : null;
@@ -1420,22 +1892,42 @@ export const useChatStore = create<ChatState>((set, get) => ({
             rawMessages = await loadCronFallbackMessages(currentSessionKey, 200);
           }
 
-          applyLoadedMessages(rawMessages, thinkingLevel);
+          const applied = applyLoadedMessages(rawMessages, thinkingLevel);
+          if (applied && isInitialForegroundLoad) {
+            _foregroundHistoryLoadSeen.add(currentSessionKey);
+          }
         } else {
+          if (isCurrentSession() && isInitialForegroundLoad && classifyHistoryStartupRetryError(lastError)) {
+            console.warn('[chat.history] startup retry exhausted', {
+              sessionKey: currentSessionKey,
+              gatewayState: useGatewayStore.getState().status.state,
+              error: String(lastError),
+            });
+          }
+
           const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
           if (fallbackMessages.length > 0) {
-            applyLoadedMessages(fallbackMessages, null);
+            const applied = applyLoadedMessages(fallbackMessages, null);
+            if (applied && isInitialForegroundLoad) {
+              _foregroundHistoryLoadSeen.add(currentSessionKey);
+            }
           } else {
-            set({ messages: [], loading: false });
+            applyLoadFailure(
+              (lastError instanceof Error ? lastError.message : String(lastError))
+              || 'Failed to load chat history',
+            );
           }
         }
       } catch (err) {
         console.warn('Failed to load chat history:', err);
         const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
         if (fallbackMessages.length > 0) {
-          applyLoadedMessages(fallbackMessages, null);
+          const applied = applyLoadedMessages(fallbackMessages, null);
+          if (applied && isInitialForegroundLoad) {
+            _foregroundHistoryLoadSeen.add(currentSessionKey);
+          }
         } else {
-          set({ messages: [], loading: false });
+          applyLoadFailure(String(err));
         }
       }
     })();
@@ -1444,7 +1936,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       await loadPromise;
     } finally {
-      // 正常完成时清除安全定时器
+      // Clear the safety timer on normal completion
       if (loadingSafetyTimer) clearTimeout(loadingSafetyTimer);
       if (!loadingTimedOut) {
         // Only update load time if we actually didn't time out
@@ -1496,6 +1988,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       messages: [...s.messages, userMsg],
       sending: true,
       error: null,
+      runError: null,
       streamingText: '',
       streamingMessage: null,
       streamingTools: [],
@@ -1624,14 +2117,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.log(`[sendMessage] RPC result: success=${result.success}, runId=${result.result?.runId || 'none'}`);
 
       if (!result.success) {
-        clearHistoryPoll();
-        set({ error: result.error || 'Failed to send message', sending: false });
+        const errorMsg = result.error || 'Failed to send message';
+        if (isRecoverableChatSendTimeout(errorMsg)) {
+          console.warn(`[sendMessage] Recoverable chat.send timeout, keeping poll alive: ${errorMsg}`);
+        } else {
+          clearHistoryPoll();
+          set({ error: errorMsg, sending: false });
+        }
       } else if (result.result?.runId) {
         set({ activeRunId: result.result.runId });
       }
     } catch (err) {
-      clearHistoryPoll();
-      set({ error: String(err), sending: false });
+      const errStr = String(err);
+      if (isRecoverableChatSendTimeout(errStr)) {
+        console.warn(`[sendMessage] Recoverable chat.send timeout, keeping poll alive: ${errStr}`);
+      } else {
+        clearHistoryPoll();
+        set({ error: errStr, sending: false });
+      }
     }
   },
 
@@ -1676,9 +2179,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     let resolvedState = eventState;
     if (!resolvedState && event.message && typeof event.message === 'object') {
       const msg = event.message as Record<string, unknown>;
-      const stopReason = msg.stopReason ?? msg.stop_reason;
-      if (stopReason) {
-        resolvedState = 'final';
+        const stopReason = getMessageStopReason(msg);
+        if (stopReason === 'error') {
+          resolvedState = 'error';
+        } else if (stopReason) {
+          resolvedState = 'final';
       } else if (msg.role || msg.content) {
         resolvedState = 'delta';
       }
@@ -1696,7 +2201,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // show loading/streaming in the app when this session has an active run.
       const { sending } = get();
       if (!sending && runId) {
-        set({ sending: true, activeRunId: runId, error: null });
+          set({ sending: true, activeRunId: runId, error: null, runError: null });
       }
     }
 
@@ -1705,26 +2210,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Run just started (e.g. from console); show loading immediately.
         const { sending: currentSending } = get();
         if (!currentSending && runId) {
-          set({ sending: true, activeRunId: runId, error: null });
+          set({ sending: true, activeRunId: runId, error: null, runError: null });
         }
         break;
       }
       case 'delta': {
-        // If we're receiving new deltas, the Gateway has recovered from any
-        // prior error — cancel the error finalization timer and clear the
-        // stale error banner so the user sees the live stream again.
+        // Clear any stale error (including RPC timeout) when new data arrives.
         if (_errorRecoveryTimer) {
           clearErrorRecoveryTimer();
-          set({ error: null });
+        }
+        if (get().error || get().runError) {
+          set({ error: null, runError: null });
         }
         const updates = collectToolUpdates(event.message, resolvedState);
+        // Capture baseline file content from disk before the runtime
+        // executes Write tool calls — enables proper before/after diff.
+        captureBaselinesFromMessage(
+          event.message,
+          getBaselineRunKeyForMessages(currentSessionKey, get().messages),
+        );
         set((s) => ({
           streamingMessage: (() => {
             if (event.message && typeof event.message === 'object') {
               const msgRole = (event.message as RawMessage).role;
               if (isToolResultRole(msgRole)) return s.streamingMessage;
             }
-            return event.message ?? s.streamingMessage;
+            return normalizeStreamingMessage(event.message ?? s.streamingMessage);
           })(),
           streamingTools: updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools,
         }));
@@ -1732,21 +2243,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
       case 'final': {
         clearErrorRecoveryTimer();
-        if (get().error) set({ error: null });
+        if (get().error || get().runError) set({ error: null, runError: null });
         // Message complete - add to history and clear streaming
         const finalMsg = event.message as RawMessage | undefined;
         if (finalMsg) {
-          const updates = collectToolUpdates(finalMsg, resolvedState);
-          if (isToolResultRole(finalMsg.role)) {
+          const normalizedFinalMessage = normalizeStreamingMessage(finalMsg) as RawMessage;
+          if (isTerminalAssistantErrorMessage(normalizedFinalMessage)) {
+            get().handleChatEvent({
+              ...event,
+              state: 'error',
+              errorMessage: getMessageErrorMessage(normalizedFinalMessage) ?? event.errorMessage,
+              message: normalizedFinalMessage,
+            });
+            break;
+          }
+          const updates = collectToolUpdates(normalizedFinalMessage, resolvedState);
+          // Filter out internal-only final responses (NO_REPLY, HEARTBEAT_OK, etc.)
+          // before adding to messages. Without this guard, the internal token appears
+          // briefly in the UI until loadHistory replaces the message list — and if the
+          // quiet-mode reload is debounced away, the token can stay visible permanently.
+          if (isInternalMessage(normalizedFinalMessage)) {
+            const sessionKeyForReload = get().currentSessionKey;
+            set({
+              streamingText: '',
+              streamingMessage: null,
+              sending: false,
+              activeRunId: null,
+              pendingFinal: false,
+              streamingTools: [],
+              pendingToolImages: [],
+            });
+            clearHistoryPoll();
+            forceNextHistoryLoad(sessionKeyForReload);
+            void get().loadHistory(true);
+            break;
+          }
+          if (isToolResultRole(normalizedFinalMessage.role)) {
             // Resolve file path from the streaming assistant message's matching tool call
             const currentStreamForPath = get().streamingMessage as RawMessage | null;
-            const matchedPath = (currentStreamForPath && finalMsg.toolCallId)
-              ? getToolCallFilePath(currentStreamForPath, finalMsg.toolCallId)
+            const matchedPath = (currentStreamForPath && normalizedFinalMessage.toolCallId)
+              ? getToolCallFilePath(currentStreamForPath, normalizedFinalMessage.toolCallId)
               : undefined;
 
             // Mirror enrichWithToolResultFiles: collect images + file refs for next assistant msg
             const toolFiles: AttachedFileMeta[] = [
-              ...extractImagesAsAttachedFiles(finalMsg.content),
+              ...extractImagesAsAttachedFiles(normalizedFinalMessage.content),
             ];
             if (matchedPath) {
               for (const f of toolFiles) {
@@ -1756,7 +2297,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }
               }
             }
-            const text = getMessageText(finalMsg.content);
+            const text = getMessageText(normalizedFinalMessage.content);
             if (text) {
               const mediaRefs = extractMediaRefs(text);
               const mediaRefPaths = new Set(mediaRefs.map(r => r.filePath));
@@ -1772,22 +2313,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               // tool result. Without snapshotting here, the intermediate thinking+tool steps
               // would be overwritten by the next turn's deltas and never appear in the UI.
               const currentStream = s.streamingMessage as RawMessage | null;
-              const snapshotMsgs: RawMessage[] = [];
-              if (currentStream) {
-                const streamRole = currentStream.role;
-                if (streamRole === 'assistant' || streamRole === undefined) {
-                  // Use message's own id if available, otherwise derive a stable one from runId
-                  const snapId = currentStream.id
-                    || `${runId || 'run'}-turn-${s.messages.length}`;
-                  if (!s.messages.some(m => m.id === snapId)) {
-                    snapshotMsgs.push({
-                      ...(currentStream as RawMessage),
-                      role: 'assistant',
-                      id: snapId,
-                    });
-                  }
-                }
-              }
+              const snapshotMsgs = snapshotStreamingAssistantMessage(currentStream, s.messages, runId);
               return {
                 messages: snapshotMsgs.length > 0 ? [...s.messages, ...snapshotMsgs] : s.messages,
                 streamingText: '',
@@ -1801,9 +2327,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             });
             break;
           }
-          const toolOnly = isToolOnlyMessage(finalMsg);
-          const hasOutput = hasNonToolAssistantContent(finalMsg);
-          const msgId = finalMsg.id || (toolOnly ? `run-${runId}-tool-${Date.now()}` : `run-${runId}`);
+          const toolOnly = isToolOnlyMessage(normalizedFinalMessage);
+          const hasOutput = hasNonToolAssistantContent(normalizedFinalMessage);
+          const msgId = normalizedFinalMessage.id || (toolOnly ? `run-${runId}-tool-${Date.now()}` : `run-${runId}`);
           set((s) => {
             const nextTools = updates.length > 0 ? upsertToolStatuses(s.streamingTools, updates) : s.streamingTools;
             const streamingTools = hasOutput ? [] : nextTools;
@@ -1812,12 +2338,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const pendingImgs = s.pendingToolImages;
             const msgWithImages: RawMessage = pendingImgs.length > 0
               ? {
-                ...finalMsg,
-                role: (finalMsg.role || 'assistant') as RawMessage['role'],
+                ...normalizedFinalMessage,
+                role: (normalizedFinalMessage.role || 'assistant') as RawMessage['role'],
                 id: msgId,
-                _attachedFiles: [...(finalMsg._attachedFiles || []), ...pendingImgs],
+                _attachedFiles: [...(normalizedFinalMessage._attachedFiles || []), ...pendingImgs],
               }
-              : { ...finalMsg, role: (finalMsg.role || 'assistant') as RawMessage['role'], id: msgId };
+              : { ...normalizedFinalMessage, role: (normalizedFinalMessage.role || 'assistant') as RawMessage['role'], id: msgId };
             const clearPendingImages = { pendingToolImages: [] as AttachedFileMeta[] };
 
             // Check if message already exists (prevent duplicates)
@@ -1871,59 +2397,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
         break;
       }
       case 'error': {
-        const errorMsg = String(event.errorMessage || 'An error occurred');
+        const errorMsg = String(
+          event.errorMessage
+          || getMessageErrorMessage(event.message)
+          || 'An error occurred',
+        );
+        const terminalAssistantError = isTerminalAssistantErrorMessage(event.message);
         const wasSending = get().sending;
 
         // Snapshot the current streaming message into messages[] so partial
         // content ("Let me get that written down...") is preserved in the UI
         // rather than being silently discarded.
         const currentStream = get().streamingMessage as RawMessage | null;
-        if (currentStream && (currentStream.role === 'assistant' || currentStream.role === undefined)) {
-          const snapId = (currentStream as RawMessage).id
-            || `error-snap-${Date.now()}`;
-          const alreadyExists = get().messages.some(m => m.id === snapId);
-          if (!alreadyExists) {
-            set((s) => ({
-              messages: [...s.messages, { ...currentStream, role: 'assistant' as const, id: snapId }],
-            }));
-          }
+        const errorSnapshot = snapshotStreamingAssistantMessage(
+          currentStream,
+          get().messages,
+          `error-${runId || Date.now()}`,
+        );
+        if (errorSnapshot.length > 0) {
+          set((s) => ({
+            messages: [...s.messages, ...errorSnapshot],
+          }));
         }
 
         set({
-          error: errorMsg,
+          error: terminalAssistantError ? null : errorMsg,
+          runError: terminalAssistantError ? errorMsg : null,
+          sending: false,
+          activeRunId: null,
           streamingText: '',
           streamingMessage: null,
           streamingTools: [],
           pendingFinal: false,
+          lastUserMessageAt: null,
           pendingToolImages: [],
         });
 
-        // Don't immediately give up: the Gateway often retries internally
-        // after transient API failures (e.g. "terminated"). Keep `sending`
-        // true for a grace period so that recovery events are processed and
-        // the agent-phase-completion handler can still trigger loadHistory.
+        clearHistoryPoll();
+        clearErrorRecoveryTimer();
         if (wasSending) {
-          clearErrorRecoveryTimer();
-          const ERROR_RECOVERY_GRACE_MS = 15_000;
-          _errorRecoveryTimer = setTimeout(() => {
-            _errorRecoveryTimer = null;
-            const state = get();
-            if (state.sending && !state.streamingMessage) {
-              clearHistoryPoll();
-              // Grace period expired with no recovery — finalize the error
-              set({
-                sending: false,
-                activeRunId: null,
-                lastUserMessageAt: null,
-              });
-              // One final history reload in case the Gateway completed in the
-              // background and we just missed the event.
-              state.loadHistory(true);
-            }
-          }, ERROR_RECOVERY_GRACE_MS);
-        } else {
-          clearHistoryPoll();
-          set({ sending: false, activeRunId: null, lastUserMessageAt: null });
+          void get().loadHistory(true);
         }
         break;
       }
@@ -1960,10 +2473,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  // ── Toggle thinking visibility ──
-
-  toggleThinking: () => set((s) => ({ showThinking: !s.showThinking })),
-
   // ── Refresh: reload history + sessions ──
 
   refresh: async () => {
@@ -1971,5 +2480,5 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await Promise.all([loadHistory(), loadSessions()]);
   },
 
-  clearError: () => set({ error: null }),
+  clearError: () => set({ error: null, runError: null }),
 }));

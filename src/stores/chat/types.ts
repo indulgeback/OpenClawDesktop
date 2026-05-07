@@ -5,6 +5,7 @@ export interface AttachedFileMeta {
   fileSize: number;
   preview: string | null;
   filePath?: string;
+  source?: 'user-upload' | 'tool-result' | 'message-ref';
 }
 
 /** Raw message from OpenClaw chat.history */
@@ -17,6 +18,10 @@ export interface RawMessage {
   toolName?: string;
   details?: unknown;
   isError?: boolean;
+  stopReason?: string;
+  stop_reason?: string;
+  errorMessage?: string;
+  error_message?: string;
   /** Local-only: file metadata for user-uploaded attachments (not sent to/from Gateway) */
   _attachedFiles?: AttachedFileMeta[];
 }
@@ -62,6 +67,7 @@ export interface ChatState {
   messages: RawMessage[];
   loading: boolean;
   error: string | null;
+  runError: string | null;
 
   // Streaming
   sending: boolean;
@@ -84,7 +90,6 @@ export interface ChatState {
   sessionLastActivity: Record<string, number>;
 
   // Thinking
-  showThinking: boolean;
   thinkingLevel: string | null;
 
   // Actions
@@ -107,7 +112,6 @@ export interface ChatState {
   ) => Promise<void>;
   abortRun: () => Promise<void>;
   handleChatEvent: (event: Record<string, unknown>) => void;
-  toggleThinking: () => void;
   refresh: () => Promise<void>;
   clearError: () => void;
 }

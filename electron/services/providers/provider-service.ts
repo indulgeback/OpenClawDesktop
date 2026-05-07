@@ -11,6 +11,7 @@ import type {
 import { BUILTIN_PROVIDER_TYPES } from '../../shared/providers/types';
 import { ensureProviderStoreMigrated } from './provider-migration';
 import {
+  deleteProviderAccount,
   getDefaultProviderAccountId,
   getProviderAccount,
   listProviderAccounts,
@@ -24,12 +25,15 @@ import {
   deleteProvider,
   getApiKey,
   hasApiKey,
-  saveProvider,
   setDefaultProvider,
   storeApiKey,
 } from '../../utils/secure-storage';
-import { getActiveOpenClawProviders, getOpenClawProvidersConfig } from '../../utils/openclaw-auth';
-import { getOpenClawProviderKeyForType } from '../../utils/provider-keys';
+import {
+  getActiveOpenClawProviders,
+  getOpenClawProvidersConfig,
+  getProviderApiKeyFromOpenClaw,
+} from '../../utils/openclaw-auth';
+import { getAliasSourceTypes, getOpenClawProviderKeyForType } from '../../utils/provider-keys';
 import type { ProviderWithKeyInfo } from '../../shared/providers/types';
 import { logger } from '../../utils/logger';
 
@@ -53,6 +57,20 @@ function logLegacyProviderApiUsage(method: string, replacement: string): void {
   );
 }
 
+function inferProviderVendorIdFromOpenClawEntry(
+  key: string,
+  entry: Record<string, unknown>,
+): ProviderType | 'custom' {
+  if (key === 'minimax-portal') {
+    const baseUrl = typeof entry.baseUrl === 'string' ? entry.baseUrl.toLowerCase() : '';
+    if (baseUrl.includes('api.minimaxi.com')) {
+      return 'minimax-portal-cn';
+    }
+  }
+
+  return ((BUILTIN_PROVIDER_TYPES as readonly string[]).includes(key) ? key : 'custom') as ProviderType | 'custom';
+}
+
 export class ProviderService {
   async listVendors(): Promise<ProviderDefinition[]> {
     return PROVIDER_DEFINITIONS;
@@ -60,93 +78,82 @@ export class ProviderService {
 
   async listAccounts(): Promise<ProviderAccount[]> {
     await ensureProviderStoreMigrated();
-    let accounts = await listProviderAccounts();
 
-    // Seed: when OpenClawPro store is empty but OpenClaw config has providers,
-    // create ProviderAccount entries so the settings panel isn't blank.
-    // This covers users who configured providers via CLI or openclaw.json directly.
-    if (accounts.length === 0) {
-      const activeProviders = await getActiveOpenClawProviders();
-      if (activeProviders.size > 0) {
-        accounts = await this.seedAccountsFromOpenClawConfig();
-      }
-      return accounts;
+    // ── openclaw.json is the ONLY source of truth ──
+    // The provider list is derived entirely from openclaw.json.
+    // The electron-store is only used as a metadata cache (label, authMode, etc.).
+
+    const { providers: openClawProviders, defaultModel } = await getOpenClawProvidersConfig();
+    const activeProviders = await getActiveOpenClawProviders();
+
+    if (activeProviders.size === 0) {
+      return [];
     }
 
-    // Sync check: hide accounts whose provider no longer exists in OpenClaw
-    // JSON (e.g. user deleted openclaw.json manually).  We intentionally do
-    // NOT delete from the store — this preserves API key associations so that
-    // when the user restores the config, accounts reappear with keys intact.
-    {
-      const activeProviders = await getActiveOpenClawProviders();
-      // When OpenClaw config has no providers (e.g. user deleted the file),
-      // treat ALL accounts as stale so OpenClawPro stays in sync.
-      const configEmpty = activeProviders.size === 0;
+    // Read store accounts as a lookup cache (NOT as the source of what to display).
+    const allStoreAccounts = await listProviderAccounts();
 
-      if (configEmpty) {
-        logger.info('[provider-sync] OpenClaw config empty — hiding all provider accounts from display');
-        return [];
-      }
+    // Index store accounts by their openclaw runtime key for fast lookup.
+    const storeByKey = new Map<string, ProviderAccount[]>();
+    for (const account of allStoreAccounts) {
+      const ock = getOpenClawProviderKeyForType(account.vendorId, account.id);
+      const group = storeByKey.get(ock) ?? [];
+      group.push(account);
+      storeByKey.set(ock, group);
+    }
 
-      accounts = accounts.filter((account) => {
-        const openClawKey = getOpenClawProviderKeyForType(account.vendorId, account.id);
-        const isActive =
-          activeProviders.has(account.vendorId) ||
-          activeProviders.has(account.id) ||
-          activeProviders.has(openClawKey);
+    const result: ProviderAccount[] = [];
+    const processedKeys = new Set<string>();
 
-        if (!isActive) {
-          logger.info(`[provider-sync] Hiding stale provider account "${account.id}" (not in OpenClaw config)`);
+    // For each active provider in openclaw.json, produce exactly ONE account.
+    for (const key of activeProviders) {
+      if (processedKeys.has(key)) continue;
+      processedKeys.add(key);
+
+      const storeGroup = storeByKey.get(key) ?? [];
+
+      if (storeGroup.length > 0) {
+        // Pick the best store account for this key:
+        // 1. Prefer alias variants (e.g. minimax-portal-cn over minimax-portal)
+        // 2. Among equal variants, prefer the most recently updated
+        const aliasAccounts = storeGroup.filter((a) => a.vendorId !== key);
+        const candidates = aliasAccounts.length > 0 ? aliasAccounts : storeGroup;
+        candidates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        result.push(candidates[0]);
+
+        // Clean up orphaned duplicates from the store.
+        const kept = candidates[0];
+        for (const account of storeGroup) {
+          if (account.id !== kept.id) {
+            logger.info(
+              `[provider-sync] Removing orphaned account "${account.id}" for key "${key}" (keeping "${kept.id}")`,
+            );
+            await deleteProviderAccount(account.id);
+          }
         }
-        return isActive;
-      });
-    }
-
-    // Import: detect providers in OpenClaw config not yet in the OpenClawPro store.
-    {
-      const { providers: openClawProviders, defaultModel } = await getOpenClawProvidersConfig();
-      const existingIds = new Set(accounts.map((a) => a.id));
-      const existingVendorIds = new Set(accounts.map((a) => a.vendorId));
-      const newAccounts = ProviderService.buildAccountsFromOpenClawEntries(
-        openClawProviders, existingIds, existingVendorIds, defaultModel,
-      );
-      for (const account of newAccounts) {
-        await saveProviderAccount(account);
-        accounts.push(account);
-      }
-      if (newAccounts.length > 0) {
-        logger.info(
-          `[provider-sync] Imported ${newAccounts.length} new provider(s) from openclaw.json: ${newAccounts.map((a) => a.id).join(', ')}`,
-        );
+      } else {
+        // No store account for this key — create a seed from openclaw.json.
+        const entry = openClawProviders[key];
+        if (entry) {
+          const seeded = ProviderService.buildAccountsFromOpenClawEntries(
+            { [key]: entry },
+            new Set(),
+            new Set(),
+            defaultModel,
+          );
+          for (const account of seeded) {
+            await saveProviderAccount(account);
+            result.push(account);
+            logger.info(`[provider-sync] Seeded provider account "${account.id}" from openclaw.json`);
+          }
+        }
       }
     }
 
-    return accounts;
+    return result;
   }
 
-  /**
-   * Seed the OpenClawPro provider store from openclaw.json when the store is empty.
-   * This is a one-time operation for users who configured providers externally.
-   */
-  private async seedAccountsFromOpenClawConfig(): Promise<ProviderAccount[]> {
-    const { providers, defaultModel } = await getOpenClawProvidersConfig();
 
-    const seeded = ProviderService.buildAccountsFromOpenClawEntries(
-      providers, new Set(), new Set(), defaultModel,
-    );
-
-    for (const account of seeded) {
-      await saveProviderAccount(account);
-    }
-
-    if (seeded.length > 0) {
-      logger.info(
-        `[provider-seed] Seeded ${seeded.length} provider account(s) from openclaw.json: ${seeded.map((a) => a.id).join(', ')}`,
-      );
-    }
-
-    return seeded;
-  }
 
   /**
    * Build ProviderAccount objects from OpenClaw config entries, skipping any
@@ -168,13 +175,19 @@ export class ProviderService {
     for (const [key, entry] of Object.entries(providers)) {
       if (existingIds.has(key)) continue;
 
-      const definition = getProviderDefinition(key);
-      const isBuiltin = (BUILTIN_PROVIDER_TYPES as readonly string[]).includes(key);
-      const vendorId = isBuiltin ? key : 'custom';
+      const vendorId = inferProviderVendorIdFromOpenClawEntry(key, entry);
+      const definition = getProviderDefinition(vendorId === 'custom' ? key : vendorId);
 
       // Skip if an account with this vendorId already exists (e.g. user already
       // created "openrouter-uuid" via UI — no need to import bare "openrouter").
       if (existingVendorIds.has(vendorId)) continue;
+
+      // Skip if an alias source type already exists.
+      // e.g. openclaw.json has "minimax-portal" but account vendorId is "minimax-portal-cn"
+      const aliasSources = getAliasSourceTypes(key);
+      if (aliasSources.some((source) => existingVendorIds.has(source))) {
+        continue;
+      }
 
       const baseUrl = typeof entry.baseUrl === 'string' ? entry.baseUrl : definition?.providerConfig?.baseUrl;
 
@@ -221,7 +234,8 @@ export class ProviderService {
 
   async createAccount(account: ProviderAccount, apiKey?: string): Promise<ProviderAccount> {
     await ensureProviderStoreMigrated();
-    await saveProvider(providerAccountToConfig(account));
+    // Only save to providerAccounts store — do NOT call saveProvider() which
+    // writes to the legacy `providers` store and causes phantom/duplicate issues.
     await saveProviderAccount(account);
     if (apiKey !== undefined && apiKey.trim()) {
       await storeApiKey(account.id, apiKey.trim());
@@ -247,7 +261,7 @@ export class ProviderService {
       updatedAt: patch.updatedAt ?? new Date().toISOString(),
     };
 
-    await saveProvider(providerAccountToConfig(nextAccount));
+    // Only save to providerAccounts store — skip legacy saveProvider().
     await saveProviderAccount(nextAccount);
     if (apiKey !== undefined) {
       const trimmedKey = apiKey.trim();
@@ -266,21 +280,22 @@ export class ProviderService {
     return deleteProvider(accountId);
   }
 
-  /**
-   * @deprecated Use listAccounts() and map account data in callers.
-   */
-  async listLegacyProviders(): Promise<ProviderConfig[]> {
-    logLegacyProviderApiUsage('listLegacyProviders', 'listAccounts');
+  // ── Internal silent variants ─────────────────────────────────────
+  // These mirror the legacy public API but never emit deprecation
+  // warnings, so internal callers (HTTP routes, IPC handlers, the new
+  // /api/provider-accounts surface) can reuse the same logic without
+  // contributing to the migration noise. Public legacy methods below
+  // delegate here after logging exactly once per process.
+
+  /** Internal: list providers in the legacy ProviderConfig shape. */
+  async _listProvidersFromAccountsInternal(): Promise<ProviderConfig[]> {
     const accounts = await this.listAccounts();
     return accounts.map(providerAccountToConfig);
   }
 
-  /**
-   * @deprecated Use listAccounts() + secret-store based key summary.
-   */
-  async listLegacyProvidersWithKeyInfo(): Promise<ProviderWithKeyInfo[]> {
-    logLegacyProviderApiUsage('listLegacyProvidersWithKeyInfo', 'listAccounts');
-    const providers = await this.listLegacyProviders();
+  /** Internal: list providers with hasKey/keyMasked metadata. */
+  async _listProvidersWithKeyInfoInternal(): Promise<ProviderWithKeyInfo[]> {
+    const providers = await this._listProvidersFromAccountsInternal();
     const results: ProviderWithKeyInfo[] = [];
     for (const provider of providers) {
       const apiKey = await getApiKey(provider.id);
@@ -293,21 +308,15 @@ export class ProviderService {
     return results;
   }
 
-  /**
-   * @deprecated Use getAccount(accountId).
-   */
-  async getLegacyProvider(providerId: string): Promise<ProviderConfig | null> {
-    logLegacyProviderApiUsage('getLegacyProvider', 'getAccount');
+  /** Internal: resolve a single provider in the legacy ProviderConfig shape. */
+  async _getProviderInternal(providerId: string): Promise<ProviderConfig | null> {
     await ensureProviderStoreMigrated();
     const account = await getProviderAccount(providerId);
     return account ? providerAccountToConfig(account) : null;
   }
 
-  /**
-   * @deprecated Use createAccount()/updateAccount().
-   */
-  async saveLegacyProvider(config: ProviderConfig): Promise<void> {
-    logLegacyProviderApiUsage('saveLegacyProvider', 'createAccount/updateAccount');
+  /** Internal: upsert a legacy provider config (creates or updates the account). */
+  async _saveProviderInternal(config: ProviderConfig): Promise<void> {
     await ensureProviderStoreMigrated();
     const account = providerConfigToAccount(config);
     const existing = await getProviderAccount(config.id);
@@ -318,14 +327,129 @@ export class ProviderService {
     await this.createAccount(account);
   }
 
+  /** Internal: delete a provider account by id. */
+  async _deleteProviderInternal(providerId: string): Promise<boolean> {
+    await ensureProviderStoreMigrated();
+    await this.deleteAccount(providerId);
+    return true;
+  }
+
+  /** Internal: set default account without warning. */
+  async _setDefaultProviderInternal(providerId: string): Promise<void> {
+    await this.setDefaultAccount(providerId);
+  }
+
+  /** Internal: read default account id without warning. */
+  async _getDefaultProviderInternal(): Promise<string | undefined> {
+    return this.getDefaultAccountId();
+  }
+
+  /** Internal: store an account's api key without warning. */
+  async _setProviderApiKeyInternal(providerId: string, apiKey: string): Promise<boolean> {
+    return storeApiKey(providerId, apiKey);
+  }
+
+  /** Internal: read an account's api key without warning. */
+  async _getProviderApiKeyInternal(providerId: string): Promise<string | null> {
+    return getApiKey(providerId);
+  }
+
+  /** Internal: delete an account's api key without warning. */
+  async _deleteProviderApiKeyInternal(providerId: string): Promise<boolean> {
+    return deleteApiKey(providerId);
+  }
+
+  /** Internal: check if an account has a stored api key. */
+  async _hasProviderApiKeyInternal(providerId: string): Promise<boolean> {
+    return hasApiKey(providerId);
+  }
+
+  // ── New clean account-based public API ───────────────────────────
+  // These never log deprecation warnings — they operate purely in
+  // the account namespace and are the preferred surface for the
+  // /api/provider-accounts/* HTTP routes and modern renderer code.
+
+  /** Return per-account API key status for the new account API surface. */
+  async listAccountsKeyInfo(): Promise<Array<{ accountId: string; hasKey: boolean; keyMasked: string | null }>> {
+    const accounts = await this.listAccounts();
+    const results: Array<{ accountId: string; hasKey: boolean; keyMasked: string | null }> = [];
+    for (const account of accounts) {
+      const runtimeProviderKey = getOpenClawProviderKeyForType(account.vendorId, account.id);
+      const apiKey = (await getProviderApiKeyFromOpenClaw(runtimeProviderKey))
+        ?? (await getApiKey(account.id))
+        ?? (runtimeProviderKey !== account.id ? await getApiKey(runtimeProviderKey) : null);
+      results.push({
+        accountId: account.id,
+        hasKey: !!apiKey,
+        keyMasked: maskApiKey(apiKey),
+      });
+    }
+    return results;
+  }
+
+  /** Read an account's API key (clean alternative to getLegacyProviderApiKey). */
+  async getAccountApiKey(accountId: string): Promise<string | null> {
+    return this._getProviderApiKeyInternal(accountId);
+  }
+
+  /** Check whether an account has an API key stored. */
+  async hasAccountApiKey(accountId: string): Promise<boolean> {
+    const account = await this.getAccount(accountId);
+    const runtimeProviderKey = account
+      ? getOpenClawProviderKeyForType(account.vendorId, account.id)
+      : accountId;
+    if (await getProviderApiKeyFromOpenClaw(runtimeProviderKey)) {
+      return true;
+    }
+    if (runtimeProviderKey !== accountId && (await hasApiKey(runtimeProviderKey))) {
+      return true;
+    }
+    return this._hasProviderApiKeyInternal(accountId);
+  }
+
+  // ── Legacy public API (logs deprecation warning once per method) ─
+  // These exist solely for backward compatibility with external clients
+  // (older Gateway code, third-party tooling, in-flight tests). Internal
+  // OpenClawPro callers should use the internal/clean methods above.
+
+  /**
+   * @deprecated Use listAccounts() and map account data in callers.
+   */
+  async listLegacyProviders(): Promise<ProviderConfig[]> {
+    logLegacyProviderApiUsage('listLegacyProviders', 'listAccounts');
+    return this._listProvidersFromAccountsInternal();
+  }
+
+  /**
+   * @deprecated Use listAccountsKeyInfo() + the account snapshot API.
+   */
+  async listLegacyProvidersWithKeyInfo(): Promise<ProviderWithKeyInfo[]> {
+    logLegacyProviderApiUsage('listLegacyProvidersWithKeyInfo', 'listAccountsKeyInfo');
+    return this._listProvidersWithKeyInfoInternal();
+  }
+
+  /**
+   * @deprecated Use getAccount(accountId).
+   */
+  async getLegacyProvider(providerId: string): Promise<ProviderConfig | null> {
+    logLegacyProviderApiUsage('getLegacyProvider', 'getAccount');
+    return this._getProviderInternal(providerId);
+  }
+
+  /**
+   * @deprecated Use createAccount()/updateAccount().
+   */
+  async saveLegacyProvider(config: ProviderConfig): Promise<void> {
+    logLegacyProviderApiUsage('saveLegacyProvider', 'createAccount/updateAccount');
+    return this._saveProviderInternal(config);
+  }
+
   /**
    * @deprecated Use deleteAccount(accountId).
    */
   async deleteLegacyProvider(providerId: string): Promise<boolean> {
     logLegacyProviderApiUsage('deleteLegacyProvider', 'deleteAccount');
-    await ensureProviderStoreMigrated();
-    await this.deleteAccount(providerId);
-    return true;
+    return this._deleteProviderInternal(providerId);
   }
 
   /**
@@ -333,7 +457,7 @@ export class ProviderService {
    */
   async setDefaultLegacyProvider(providerId: string): Promise<void> {
     logLegacyProviderApiUsage('setDefaultLegacyProvider', 'setDefaultAccount');
-    await this.setDefaultAccount(providerId);
+    return this._setDefaultProviderInternal(providerId);
   }
 
   /**
@@ -341,7 +465,7 @@ export class ProviderService {
    */
   async getDefaultLegacyProvider(): Promise<string | undefined> {
     logLegacyProviderApiUsage('getDefaultLegacyProvider', 'getDefaultAccountId');
-    return this.getDefaultAccountId();
+    return this._getDefaultProviderInternal();
   }
 
   /**
@@ -349,15 +473,15 @@ export class ProviderService {
    */
   async setLegacyProviderApiKey(providerId: string, apiKey: string): Promise<boolean> {
     logLegacyProviderApiUsage('setLegacyProviderApiKey', 'setProviderSecret(accountId, api_key)');
-    return storeApiKey(providerId, apiKey);
+    return this._setProviderApiKeyInternal(providerId, apiKey);
   }
 
   /**
-   * @deprecated Use secret-store APIs by accountId.
+   * @deprecated Use getAccountApiKey(accountId).
    */
   async getLegacyProviderApiKey(providerId: string): Promise<string | null> {
-    logLegacyProviderApiUsage('getLegacyProviderApiKey', 'getProviderSecret(accountId)');
-    return getApiKey(providerId);
+    logLegacyProviderApiUsage('getLegacyProviderApiKey', 'getAccountApiKey');
+    return this._getProviderApiKeyInternal(providerId);
   }
 
   /**
@@ -365,15 +489,15 @@ export class ProviderService {
    */
   async deleteLegacyProviderApiKey(providerId: string): Promise<boolean> {
     logLegacyProviderApiUsage('deleteLegacyProviderApiKey', 'deleteProviderSecret(accountId)');
-    return deleteApiKey(providerId);
+    return this._deleteProviderApiKeyInternal(providerId);
   }
 
   /**
-   * @deprecated Use secret-store APIs by accountId.
+   * @deprecated Use hasAccountApiKey(accountId).
    */
   async hasLegacyProviderApiKey(providerId: string): Promise<boolean> {
-    logLegacyProviderApiUsage('hasLegacyProviderApiKey', 'getProviderSecret(accountId)');
-    return hasApiKey(providerId);
+    logLegacyProviderApiUsage('hasLegacyProviderApiKey', 'hasAccountApiKey');
+    return this._hasProviderApiKeyInternal(providerId);
   }
 
   async setDefaultAccount(accountId: string): Promise<void> {

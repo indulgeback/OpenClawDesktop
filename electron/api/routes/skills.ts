@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { getAllSkillConfigs, updateSkillConfig } from '../../utils/skill-config';
+import { collectQuickAccessSkills, filterEnabledQuickAccessSkills, type QuickAccessRuntimeSkillStatus } from '../../utils/skill-quick-access';
+import type { ClawHubInstallParams, ClawHubSearchParams, ClawHubUninstallParams } from '../../gateway/clawhub';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 
@@ -26,42 +28,84 @@ export async function handleSkillRoutes(
         env: body.env,
       }));
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/skills/quick-access' && req.method === 'POST') {
+    try {
+      const body = await parseJsonBody<{
+        workspace?: string;
+      }>(req);
+      const [scannedSkills, configs] = await Promise.all([
+        collectQuickAccessSkills({
+          workspace: body.workspace,
+        }),
+        getAllSkillConfigs(),
+      ]);
+      let runtimeSkills: QuickAccessRuntimeSkillStatus[] | undefined;
+      if (ctx.gatewayManager.getStatus().state === 'running') {
+        try {
+          const runtimeStatus = await ctx.gatewayManager.rpc<{ skills?: QuickAccessRuntimeSkillStatus[] }>('skills.status');
+          runtimeSkills = runtimeStatus.skills || [];
+        } catch {
+          runtimeSkills = undefined;
+        }
+      }
+      sendJson(res, 200, {
+        success: true,
+        skills: filterEnabledQuickAccessSkills(scannedSkills, runtimeSkills, configs),
+      });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
+    }
+    return true;
+  }
+
+  if (url.pathname === '/api/clawhub/capability' && req.method === 'GET') {
+    try {
+      sendJson(res, 200, {
+        success: true,
+        capability: await ctx.clawHubService.getMarketplaceCapability(),
+      });
+    } catch (error) {
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }
 
   if (url.pathname === '/api/clawhub/search' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<ClawHubSearchParams>(req);
       sendJson(res, 200, {
         success: true,
         results: await ctx.clawHubService.search(body),
       });
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }
 
   if (url.pathname === '/api/clawhub/install' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<ClawHubInstallParams>(req);
       await ctx.clawHubService.install(body);
       sendJson(res, 200, { success: true });
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }
 
   if (url.pathname === '/api/clawhub/uninstall' && req.method === 'POST') {
     try {
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<ClawHubUninstallParams>(req);
       await ctx.clawHubService.uninstall(body);
       sendJson(res, 200, { success: true });
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }
@@ -70,7 +114,7 @@ export async function handleSkillRoutes(
     try {
       sendJson(res, 200, { success: true, results: await ctx.clawHubService.listInstalled() });
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }
@@ -81,7 +125,7 @@ export async function handleSkillRoutes(
       await ctx.clawHubService.openSkillReadme(body.skillKey || body.slug || '', body.slug, body.baseDir);
       sendJson(res, 200, { success: true });
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }
@@ -92,7 +136,7 @@ export async function handleSkillRoutes(
       await ctx.clawHubService.openSkillPath(body.skillKey || body.slug || '', body.slug, body.baseDir);
       sendJson(res, 200, { success: true });
     } catch (error) {
-      sendJson(res, 500, { success: false, error: String(error) });
+      sendJson(res, 500, { success: false, error: error instanceof Error ? error.message : String(error) });
     }
     return true;
   }

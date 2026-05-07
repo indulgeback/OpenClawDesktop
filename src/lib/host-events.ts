@@ -6,6 +6,8 @@ const HOST_EVENT_TO_IPC_CHANNEL: Record<string, string> = {
   'gateway:status': 'gateway:status-changed',
   'gateway:error': 'gateway:error',
   'gateway:notification': 'gateway:notification',
+  'gateway:health': 'gateway:health-changed',
+  'gateway:presence': 'gateway:presence-changed',
   'gateway:chat-message': 'gateway:chat-message',
   'gateway:channel-status': 'gateway:channel-status',
   'gateway:exit': 'gateway:exit',
@@ -45,7 +47,16 @@ export function subscribeHostEvent<T = unknown>(
     const listener = (payload: unknown) => {
       handler(payload as T);
     };
-    ipc.on(ipcChannel, listener);
+    // preload's `on()` wraps the callback in an internal subscription function
+    // and returns a cleanup function that removes that exact wrapper.  We MUST
+    // use the returned cleanup rather than calling `off(channel, listener)`,
+    // because `listener` !== the internal wrapper and removeListener would be
+    // a no-op, leaking the subscription.
+    const unsubscribe = ipc.on(ipcChannel, listener);
+    if (typeof unsubscribe === 'function') {
+      return unsubscribe;
+    }
+    // Fallback for environments where on() doesn't return cleanup
     return () => {
       ipc.off(ipcChannel, listener);
     };

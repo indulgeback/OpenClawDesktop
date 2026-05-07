@@ -15,6 +15,8 @@ import { FeedbackState } from '@/components/common/FeedbackState';
 import {
   filterUsageHistoryByWindow,
   groupUsageHistory,
+  resolveStableUsageHistory,
+  resolveVisibleUsageHistory,
   type UsageGroupBy,
   type UsageHistoryEntry,
   type UsageWindow,
@@ -22,6 +24,15 @@ import {
 const DEFAULT_USAGE_FETCH_MAX_ATTEMPTS = 2;
 const WINDOWS_USAGE_FETCH_MAX_ATTEMPTS = 3;
 const USAGE_FETCH_RETRY_DELAY_MS = 1500;
+const USAGE_AUTO_REFRESH_INTERVAL_MS = 15_000;
+
+const HIDDEN_USAGE_MARKERS = ['gateway-injected', 'delivery-mirror'];
+
+function isHiddenUsageSource(source?: string): boolean {
+  if (!source) return false;
+  const normalizedSource = source.trim().toLowerCase();
+  return HIDDEN_USAGE_MARKERS.some((marker) => normalizedSource.includes(marker));
+}
 
 export function Models() {
   const { t } = useTranslation(['dashboard', 'settings']);
@@ -36,38 +47,99 @@ export function Models() {
   const [usageWindow, setUsageWindow] = useState<UsageWindow>('7d');
   const [usagePage, setUsagePage] = useState(1);
   const [selectedUsageEntry, setSelectedUsageEntry] = useState<UsageHistoryEntry | null>(null);
+  const [usageRefreshNonce, setUsageRefreshNonce] = useState(0);
+  function formatUsageSource(source?: string): string | undefined {
+    if (!source) return undefined;
+
+    if (isHiddenUsageSource(source)) {
+      return undefined;
+    }
+
+    return source;
+  }
+
+  function shouldHideUsageEntry(entry: UsageHistoryEntry): boolean {
+    return (
+      isHiddenUsageSource(entry.provider)
+      || isHiddenUsageSource(entry.model)
+    );
+  }
 
   type FetchState = {
     status: 'idle' | 'loading' | 'done';
     data: UsageHistoryEntry[];
+    stableData: UsageHistoryEntry[];
   };
   type FetchAction =
     | { type: 'start' }
     | { type: 'done'; data: UsageHistoryEntry[] }
+    | { type: 'failed' }
     | { type: 'reset' };
 
   const [fetchState, dispatchFetch] = useReducer(
     (state: FetchState, action: FetchAction): FetchState => {
       switch (action.type) {
         case 'start':
-          return { status: 'loading', data: state.data };
+          return { ...state, status: 'loading' };
         case 'done':
-          return { status: 'done', data: action.data };
+          return {
+            status: 'done',
+            data: action.data,
+            stableData: resolveStableUsageHistory(state.stableData, action.data),
+          };
+        case 'failed':
+          return { ...state, status: 'done' };
         case 'reset':
-          return { status: 'idle', data: [] };
+          return { status: 'idle', data: [], stableData: [] };
         default:
           return state;
       }
     },
-    { status: 'idle' as const, data: [] as UsageHistoryEntry[] },
+    { status: 'idle' as const, data: [] as UsageHistoryEntry[], stableData: [] as UsageHistoryEntry[] },
   );
 
   const usageFetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usageFetchGenerationRef = useRef(0);
+  const usageFetchStatusRef = useRef<FetchState['status']>('idle');
+
+  useEffect(() => {
+    usageFetchStatusRef.current = fetchState.status;
+  }, [fetchState.status]);
 
   useEffect(() => {
     trackUiEvent('models.page_viewed');
   }, []);
+
+  useEffect(() => {
+    if (!isGatewayRunning) {
+      return;
+    }
+
+    const requestRefresh = () => {
+      if (usageFetchStatusRef.current === 'loading') return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      setUsageRefreshNonce((value) => value + 1);
+    };
+
+    const intervalId = window.setInterval(requestRefresh, USAGE_AUTO_REFRESH_INTERVAL_MS);
+    const handleFocus = () => {
+      requestRefresh();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestRefresh();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isGatewayRunning]);
 
   useEffect(() => {
     if (usageFetchTimerRef.current) {
@@ -97,7 +169,7 @@ export function Models() {
         generation,
         restartMarker,
       });
-      dispatchFetch({ type: 'done', data: [] });
+      dispatchFetch({ type: 'failed' });
     }, 30_000);
 
     const fetchUsageHistoryWithRetry = async (attempt: number) => {
@@ -160,7 +232,7 @@ export function Models() {
           }, USAGE_FETCH_RETRY_DELAY_MS);
           return;
         }
-        dispatchFetch({ type: 'done', data: [] });
+        dispatchFetch({ type: 'failed' });
         trackUiEvent('models.token_usage_fetch_exhausted', {
           generation,
           attempt,
@@ -179,29 +251,37 @@ export function Models() {
         usageFetchTimerRef.current = null;
       }
     };
-  }, [isGatewayRunning, gatewayStatus.connectedAt, gatewayStatus.pid, usageFetchMaxAttempts]);
+  }, [isGatewayRunning, gatewayStatus.connectedAt, gatewayStatus.pid, usageFetchMaxAttempts, usageRefreshNonce]);
 
-  const usageHistory = fetchState.data;
-  const visibleUsageHistory = isGatewayRunning ? usageHistory : [];
+  const usageHistory = isGatewayRunning
+    ? fetchState.data.filter((entry) => !shouldHideUsageEntry(entry))
+    : [];
+  const stableUsageHistory = isGatewayRunning
+    ? fetchState.stableData.filter((entry) => !shouldHideUsageEntry(entry))
+    : [];
+  const visibleUsageHistory = resolveVisibleUsageHistory(usageHistory, stableUsageHistory, {
+    preferStableOnEmpty: isGatewayRunning && fetchState.status === 'loading',
+  });
   const filteredUsageHistory = filterUsageHistoryByWindow(visibleUsageHistory, usageWindow);
   const usageGroups = groupUsageHistory(filteredUsageHistory, usageGroupBy);
   const usagePageSize = 5;
   const usageTotalPages = Math.max(1, Math.ceil(filteredUsageHistory.length / usagePageSize));
   const safeUsagePage = Math.min(usagePage, usageTotalPages);
   const pagedUsageHistory = filteredUsageHistory.slice((safeUsagePage - 1) * usagePageSize, safeUsagePage * usagePageSize);
-  const usageLoading = isGatewayRunning && fetchState.status === 'loading';
+  const usageLoading = isGatewayRunning && fetchState.status === 'loading' && visibleUsageHistory.length === 0;
+  const usageRefreshing = isGatewayRunning && fetchState.status === 'loading' && visibleUsageHistory.length > 0;
 
   return (
-    <div className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
+    <div data-testid="models-page" className="flex flex-col -m-6 dark:bg-background h-[calc(100vh-2.5rem)] overflow-hidden">
       <div className="w-full max-w-5xl mx-auto flex flex-col h-full p-10 pt-16">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 data-testid="models-page-title" className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight">
               {t('dashboard:models.title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
+            <p className="text-subtitle text-foreground/70 font-medium">
               {t('dashboard:models.subtitle')}
             </p>
           </div>
@@ -215,7 +295,7 @@ export function Models() {
 
           {/* Token Usage History Section */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
               {t('dashboard:recentTokenHistory.title', 'Token Usage History')}
             </h2>
             <div>
@@ -295,8 +375,10 @@ export function Models() {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-[13px] font-medium text-muted-foreground">
-                      {t('dashboard:recentTokenHistory.showingLast', { count: filteredUsageHistory.length })}
+                    <p className="text-meta font-medium text-muted-foreground">
+                      {usageRefreshing
+                        ? t('dashboard:recentTokenHistory.loading')
+                        : t('dashboard:recentTokenHistory.showingLast', { count: filteredUsageHistory.length })}
                     </p>
                   </div>
 
@@ -313,32 +395,55 @@ export function Models() {
                     {pagedUsageHistory.map((entry) => (
                       <div
                         key={`${entry.sessionId}-${entry.timestamp}`}
+                        data-testid="token-usage-entry"
                         className="rounded-2xl bg-transparent border border-black/10 dark:border-white/10 p-5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="font-semibold text-[15px] text-foreground truncate">
+                            <p className="font-semibold text-sm text-foreground truncate">
                               {entry.model || t('dashboard:recentTokenHistory.unknownModel')}
                             </p>
-                            <p className="text-[13px] text-muted-foreground truncate mt-0.5">
-                              {[entry.provider, entry.agentId, entry.sessionId].filter(Boolean).join(' • ')}
+                            <p className="text-meta text-muted-foreground truncate mt-0.5">
+                              {[formatUsageSource(entry.provider), formatUsageSource(entry.agentId), entry.sessionId].filter(Boolean).join(' • ')}
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="font-bold text-[15px]">{formatTokenCount(entry.totalTokens)}</p>
-                            <p className="text-[12px] text-muted-foreground mt-0.5">
+                            <p className={getUsageTotalClass(entry)}>
+                              {formatUsageTotal(entry)}
+                            </p>
+                            {entry.usageStatus === 'missing' && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {t('dashboard:recentTokenHistory.noUsage')}
+                              </p>
+                            )}
+                            {entry.usageStatus === 'error' && (
+                              <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">
+                                {t('dashboard:recentTokenHistory.usageParseError')}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-0.5">
                               {formatUsageTimestamp(entry.timestamp)}
                             </p>
                           </div>
                         </div>
-                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[12.5px] font-medium text-muted-foreground">
-                          <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-sky-500"></div>{t('dashboard:recentTokenHistory.input', { value: formatTokenCount(entry.inputTokens) })}</span>
-                          <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"></div>{t('dashboard:recentTokenHistory.output', { value: formatTokenCount(entry.outputTokens) })}</span>
-                          {entry.cacheReadTokens > 0 && (
-                            <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>{t('dashboard:recentTokenHistory.cacheRead', { value: formatTokenCount(entry.cacheReadTokens) })}</span>
-                          )}
-                          {entry.cacheWriteTokens > 0 && (
-                            <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>{t('dashboard:recentTokenHistory.cacheWrite', { value: formatTokenCount(entry.cacheWriteTokens) })}</span>
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-meta font-medium text-muted-foreground">
+                          {entry.usageStatus === 'available' || entry.usageStatus === undefined ? (
+                            <>
+                              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-sky-500"></div>{t('dashboard:recentTokenHistory.input', { value: formatTokenCount(entry.inputTokens) })}</span>
+                              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-violet-500"></div>{t('dashboard:recentTokenHistory.output', { value: formatTokenCount(entry.outputTokens) })}</span>
+                              {entry.cacheReadTokens > 0 && (
+                                <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>{t('dashboard:recentTokenHistory.cacheRead', { value: formatTokenCount(entry.cacheReadTokens) })}</span>
+                              )}
+                              {entry.cacheWriteTokens > 0 && (
+                                <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>{t('dashboard:recentTokenHistory.cacheWrite', { value: formatTokenCount(entry.cacheWriteTokens) })}</span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs">
+                              {entry.usageStatus === 'missing'
+                                ? t('dashboard:recentTokenHistory.noUsage')
+                                : t('dashboard:recentTokenHistory.usageParseError')}
+                            </span>
                           )}
                           {typeof entry.costUsd === 'number' && Number.isFinite(entry.costUsd) && (
                             <span className="flex items-center gap-1.5 ml-auto text-foreground/80 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md">{t('dashboard:recentTokenHistory.cost', { amount: entry.costUsd.toFixed(4) })}</span>
@@ -347,7 +452,7 @@ export function Models() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-6 rounded-full px-2.5 text-[11.5px] border-black/10 dark:border-white/10"
+                              className="h-6 rounded-full px-2.5 text-tiny border-black/10 dark:border-white/10"
                               onClick={() => setSelectedUsageEntry(entry)}
                             >
                               {t('dashboard:recentTokenHistory.viewContent')}
@@ -359,7 +464,7 @@ export function Models() {
                   </div>
 
                   <div className="flex items-center justify-between gap-3 pt-2">
-                    <p className="text-[13px] font-medium text-muted-foreground">
+                    <p className="text-meta font-medium text-muted-foreground">
                       {t('dashboard:recentTokenHistory.page', { current: safeUsagePage, total: usageTotalPages })}
                     </p>
                     <div className="flex items-center gap-2">
@@ -409,6 +514,18 @@ function formatTokenCount(value: number): string {
   return Intl.NumberFormat().format(value);
 }
 
+function getUsageTotalClass(entry: UsageHistoryEntry): string {
+  if (entry.usageStatus === 'error') return 'font-bold text-sm text-red-500 dark:text-red-400';
+  if (entry.usageStatus === 'missing') return 'font-bold text-sm text-muted-foreground';
+  return 'font-bold text-sm';
+}
+
+function formatUsageTotal(entry: UsageHistoryEntry): string {
+  if (entry.usageStatus === 'error') return '✕';
+  if (entry.usageStatus === 'missing') return '—';
+  return formatTokenCount(entry.totalTokens);
+}
+
 function formatUsageTimestamp(timestamp: string): string {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return timestamp;
@@ -443,7 +560,7 @@ function UsageBarChart({
 }) {
   if (groups.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-black/10 dark:border-white/10 p-8 text-center text-[14px] font-medium text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-black/10 dark:border-white/10 p-8 text-center text-sm font-medium text-muted-foreground">
         {emptyLabel}
       </div>
     );
@@ -453,7 +570,7 @@ function UsageBarChart({
 
   return (
     <div className="space-y-4 bg-transparent p-5 rounded-2xl border border-black/10 dark:border-white/10">
-      <div className="flex flex-wrap gap-4 text-[13px] font-medium text-muted-foreground mb-2">
+      <div className="flex flex-wrap gap-4 text-meta font-medium text-muted-foreground mb-2">
         <span className="inline-flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
           {inputLabel}
@@ -469,7 +586,7 @@ function UsageBarChart({
       </div>
       {groups.map((group) => (
         <div key={group.label} className="space-y-1.5">
-          <div className="flex items-center justify-between gap-3 text-[13.5px]">
+          <div className="flex items-center justify-between gap-3 text-sm">
             <span className="truncate font-semibold text-foreground">{group.label}</span>
             <span className="text-muted-foreground font-medium">
               {totalLabel}: {formatTokenCount(group.totalTokens)}

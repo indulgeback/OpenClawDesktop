@@ -47,8 +47,9 @@
         "mainAccount": "メインアカウント",
         "customIdLabel": "アカウント ID",
         "customIdPlaceholder": "例: feishu-sales-bot",
-        "customIdHint": "同じチャンネル内の複数アカウントを区別するため、任意の ID を設定できます。",
+        "customIdHint": "同じチャンネル内の複数アカウントを区別するため、英小文字・数字・ハイフン・アンダースコアのみの ID を設定してください。",
         "invalidId": "アカウント ID は空にできません",
+        "invalidCanonicalId": "アカウント ID は英小文字・数字・ハイフン・アンダースコアのみ使用でき、先頭は英小文字または数字、最大 64 文字です。",
         "idLabel": "ID: {{id}}",
         "boundTo": "割り当て先: {{agent}}",
         "handledBy": "{{agent}} が処理",
@@ -61,6 +62,7 @@
         "connectionStatus": {
             "connected": "接続済み",
             "connecting": "接続中",
+            "degraded": "劣化中",
             "disconnected": "未接続",
             "error": "異常"
         },
@@ -97,6 +99,30 @@
         "updateAndReconnect": "更新して再接続",
         "saveAndConnect": "保存して接続",
         "envVar": "環境変数: {{var}}"
+    },
+    "health": {
+        "state": {
+            "degraded": "ゲートウェイ劣化",
+            "unresponsive": "ゲートウェイ無応答"
+        },
+        "reasons": {
+            "gateway_degraded": "ゲートウェイのハートビートに劣化が見られます。",
+            "gateway_unresponsive": "ゲートウェイの制御プレーンが無応答です。",
+            "channels_status_timeout": "チャンネル状態の問い合わせがタイムアウトしました。",
+            "rpc_timeout": "最近のゲートウェイ RPC がタイムアウトしました。",
+            "gateway_not_running": "ゲートウェイは起動していません。",
+            "gateway_error": "ゲートウェイはエラー状態です。",
+            "runtime_error": "チャンネルランタイムがエラーを返しました。"
+        },
+        "restartGateway": "ゲートウェイを再起動",
+        "copyDiagnostics": "診断をコピー",
+        "viewDiagnostics": "診断を表示",
+        "hideDiagnostics": "診断を隠す",
+        "diagnosticsTitle": "ゲートウェイ診断スナップショット",
+        "diagnosticsCopied": "診断をクリップボードにコピーしました",
+        "diagnosticsCopyFailed": "診断の取得に失敗しました: {{error}}",
+        "restartTriggered": "ゲートウェイの再起動を要求しました",
+        "restartFailed": "ゲートウェイの再起動に失敗しました: {{error}}"
     },
     "meta": {
         "telegram": {
@@ -180,25 +206,12 @@
                 "clientSecret": {
                     "label": "Client Secret (AppSecret)",
                     "placeholder": "アプリのシークレット"
-                },
-                "robotCode": {
-                    "label": "Robot Code（任意）",
-                    "placeholder": "通常は Client ID と同じ"
-                },
-                "corpId": {
-                    "label": "Corp ID（任意）",
-                    "placeholder": "dingxxxxxx"
-                },
-                "agentId": {
-                    "label": "Agent ID（任意）",
-                    "placeholder": "123456789"
                 }
             },
             "instructions": [
                 "まず OpenClaw に dingtalk プラグインをインストールして有効化します",
                 "DingTalk 開発者コンソールで社内アプリを作成し Stream モードを有効にします",
-                "Client ID と Client Secret を入力します（必須）",
-                "必要に応じて Robot Code / Corp ID / Agent ID を入力します"
+                "Client ID (AppKey) と Client Secret (AppSecret) を入力します"
             ]
         },
         "signal": {
@@ -368,7 +381,7 @@
             "docsUrl": "https://docs.openclaw.ai/channels/mattermost"
         },
         "qqbot": {
-            "description": "@sliverp/qqbot プラグイン経由で QQ ボットに接続します",
+            "description": "QQ ボットチャンネルに接続します（OpenClaw 3.31 より内蔵）",
             "fields": {
                 "appId": {
                     "label": "App ID",

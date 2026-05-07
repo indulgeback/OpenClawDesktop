@@ -14,7 +14,7 @@ export const PORTS = {
   OPENCLAWPRO_GUI: 23333,
 
   /** Local host API server port */
-  OPENCLAWPRO_HOST_API: 3210,
+  OPENCLAWPRO_HOST_API: 13210,
   
   /** OpenClaw Gateway port */
   OPENCLAW_GATEWAY: 18789,
